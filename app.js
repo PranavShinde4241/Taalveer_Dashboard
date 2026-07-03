@@ -16,15 +16,19 @@ function logout() {
 // BASIC CONFIGURATION
 // ===============================
 
-// Your Google Sheet ID from the shared link
 const SPREADSHEET_ID = "1_nlRFxAST7ErzyqiBr9b_Tw8OhjNCAXz";
 
-// Allowed sheets only
 const ALLOWED_SHEETS = ["व्यवहार_नोंद", "Event_Show_Master"];
 
-// Dashboard range
 const DASHBOARD_SHEET = "Dashboard_Summary";
 const DASHBOARD_RANGE = "A4:B6";
+
+// Important:
+// We force table sheets to start from A1 so actual Google Sheet headers are captured.
+const TABLE_RANGES = {
+  "व्यवहार_नोंद": "A1:AZ1000",
+  "Event_Show_Master": "A1:AZ1000"
+};
 
 
 // ===============================
@@ -37,15 +41,17 @@ window.onload = function () {
 
 
 // ===============================
-// GOOGLE SHEET FETCH FUNCTION
+// GOOGLE SHEET RAW ROW FETCH FUNCTION
 // ===============================
 
-async function fetchGoogleSheetTable(sheetName, range = "") {
+async function fetchSheetRows(sheetName, range = "") {
   const encodedSheet = encodeURIComponent(sheetName);
   const encodedRange = range ? `&range=${encodeURIComponent(range)}` : "";
 
+  // headers=0 is very important.
+  // It prevents Google from treating first transaction row as header.
   const url =
-    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodedSheet}${encodedRange}`;
+    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodedSheet}${encodedRange}&headers=0&_=${Date.now()}`;
 
   const response = await fetch(url);
 
@@ -54,38 +60,63 @@ async function fetchGoogleSheetTable(sheetName, range = "") {
   }
 
   const text = await response.text();
-
   const jsonText = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
   const json = JSON.parse(jsonText);
 
-  if (!json.table) {
-    return {
-      headers: [],
-      rows: []
-    };
+  if (!json.table || !json.table.rows) {
+    return [];
   }
 
-  const headers = (json.table.cols || []).map((col, index) => {
-    if (col.label && col.label.trim() !== "") {
-      return col.label;
+  const colCount = json.table.cols ? json.table.cols.length : 0;
+
+  let rows = json.table.rows.map(row => {
+    const output = [];
+
+    for (let i = 0; i < colCount; i++) {
+      const cell = row.c && row.c[i] ? row.c[i] : null;
+
+      if (!cell) {
+        output.push("");
+      } else {
+        output.push(cell.f !== undefined ? cell.f : cell.v !== undefined ? cell.v : "");
+      }
     }
-    return `Column ${index + 1}`;
+
+    return output;
   });
 
-  const rows = (json.table.rows || []).map(row => {
-    return (json.table.cols || []).map((col, index) => {
-      const cell = row.c && row.c[index] ? row.c[index] : null;
+  rows = trimEmptyRowsAndColumns(rows);
 
-      if (!cell) return "";
+  return rows;
+}
 
-      return cell.f !== undefined ? cell.f : cell.v !== undefined ? cell.v : "";
+
+// ===============================
+// REMOVE EMPTY ROWS AND EXTRA BLANK COLUMNS
+// ===============================
+
+function trimEmptyRowsAndColumns(rows) {
+  let cleanedRows = rows.filter(row => {
+    return row.some(cell => String(cell).trim() !== "");
+  });
+
+  if (!cleanedRows.length) {
+    return [];
+  }
+
+  let lastUsedColumnIndex = 0;
+
+  cleanedRows.forEach(row => {
+    row.forEach((cell, index) => {
+      if (String(cell).trim() !== "") {
+        lastUsedColumnIndex = Math.max(lastUsedColumnIndex, index);
+      }
     });
   });
 
-  return {
-    headers,
-    rows
-  };
+  cleanedRows = cleanedRows.map(row => row.slice(0, lastUsedColumnIndex + 1));
+
+  return cleanedRows;
 }
 
 
@@ -98,8 +129,7 @@ async function loadDashboardBalance() {
   container.innerHTML = `<p class="loading">Loading balance...</p>`;
 
   try {
-    const tableData = await fetchGoogleSheetTable(DASHBOARD_SHEET, DASHBOARD_RANGE);
-    const rows = tableData.rows;
+    const rows = await fetchSheetRows(DASHBOARD_SHEET, DASHBOARD_RANGE);
 
     if (!rows.length) {
       container.innerHTML = "<p>No balance data found.</p>";
@@ -146,14 +176,17 @@ async function loadSheet(sheetName) {
   container.innerHTML = `<p class="loading">Loading ${sheetName}...</p>`;
 
   try {
-    const tableData = await fetchGoogleSheetTable(sheetName);
+    const range = TABLE_RANGES[sheetName] || "A1:AZ1000";
+    const rows = await fetchSheetRows(sheetName, range);
 
-    if (!tableData.rows.length) {
+    if (!rows.length) {
       container.innerHTML = "<p>No data found in this sheet.</p>";
       return;
     }
 
-    renderTable(tableData.headers, tableData.rows, container);
+    const tableData = prepareTableData(sheetName, rows);
+
+    renderTable(tableData.headers, tableData.bodyRows, container);
 
   } catch (error) {
     container.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
@@ -162,13 +195,113 @@ async function loadSheet(sheetName) {
 
 
 // ===============================
-// TABLE RENDERING WITH PROPER HEADER
+// PREPARE HEADER AND BODY ROWS
+// ===============================
+
+function prepareTableData(sheetName, rows) {
+  let headerIndex = findHeaderRowIndex(sheetName, rows);
+
+  let headers = rows[headerIndex] || [];
+  let bodyRows = rows.slice(headerIndex + 1);
+
+  // Fallback:
+  // If Google still gives data row as header, manually fix it.
+  if (looksLikeTransactionDataRow(headers) && sheetName === "व्यवहार_नोंद") {
+    bodyRows = rows;
+    headers = [
+      "Sr No",
+      "Transaction ID",
+      "Transaction Date",
+      "Transaction Time",
+      "Event ID",
+      "Event/Show Name",
+      "Month",
+      "Year",
+      "Category",
+      "Sub Category",
+      "Type",
+      "Transaction Details",
+      "Payment Mode",
+      "Amount",
+      "Person Name",
+      "Role",
+      "Proof / Reference",
+      "Notes"
+    ];
+  }
+
+  headers = headers.map((header, index) => {
+    const text = String(header).trim();
+    return text !== "" ? text : `Column ${index + 1}`;
+  });
+
+  bodyRows = bodyRows.filter(row => {
+    return row.some(cell => String(cell).trim() !== "");
+  });
+
+  // Remove repeated header row if it appears again inside body
+  bodyRows = bodyRows.filter(row => {
+    return row.join("|") !== headers.join("|");
+  });
+
+  return {
+    headers,
+    bodyRows
+  };
+}
+
+
+// ===============================
+// FIND ACTUAL HEADER ROW
+// ===============================
+
+function findHeaderRowIndex(sheetName, rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const rowText = rows[i].map(x => String(x).trim().toLowerCase()).join("|");
+
+    if (
+      sheetName === "व्यवहार_नोंद" &&
+      rowText.includes("sr no") &&
+      rowText.includes("transaction id")
+    ) {
+      return i;
+    }
+
+    if (
+      sheetName === "event_show_master" &&
+      rowText.includes("event id") &&
+      rowText.includes("event/show name")
+    ) {
+      return i;
+    }
+  }
+
+  // If exact header not found, use first non-empty row.
+  return 0;
+}
+
+
+// ===============================
+// CHECK IF HEADER IS ACTUALLY DATA ROW
+// ===============================
+
+function looksLikeTransactionDataRow(row) {
+  if (!row || row.length < 3) return false;
+
+  const firstCell = String(row[0]).trim();
+  const secondCell = String(row[1]).trim();
+
+  return /^\d+$/.test(firstCell) && secondCell.startsWith("TXN-");
+}
+
+
+// ===============================
+// TABLE RENDERING
 // ===============================
 
 function renderTable(headers, rows, container) {
   const table = document.createElement("table");
 
-  // Create table header
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
 
@@ -181,15 +314,14 @@ function renderTable(headers, rows, container) {
   thead.appendChild(headerRow);
   table.appendChild(thead);
 
-  // Create table body
   const tbody = document.createElement("tbody");
 
   rows.forEach(row => {
     const tr = document.createElement("tr");
 
-    row.forEach(cell => {
+    headers.forEach((header, index) => {
       const td = document.createElement("td");
-      td.innerHTML = linkifyCell(cell);
+      td.innerHTML = linkifyCell(row[index] || "");
       tr.appendChild(td);
     });
 
@@ -211,7 +343,6 @@ function linkifyCell(value) {
   if (!value) return "";
 
   const text = String(value).trim();
-
   const urlRegex = /(https?:\/\/[^\s]+)/g;
 
   if (urlRegex.test(text)) {
