@@ -40,7 +40,7 @@ window.onload = function () {
 // GOOGLE SHEET FETCH FUNCTION
 // ===============================
 
-async function fetchSheetData(sheetName, range = "") {
+async function fetchGoogleSheetTable(sheetName, range = "") {
   const encodedSheet = encodeURIComponent(sheetName);
   const encodedRange = range ? `&range=${encodeURIComponent(range)}` : "";
 
@@ -55,20 +55,37 @@ async function fetchSheetData(sheetName, range = "") {
 
   const text = await response.text();
 
-  // Google returns JSON wrapped inside: google.visualization.Query.setResponse(...)
   const jsonText = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
   const json = JSON.parse(jsonText);
 
-  if (!json.table || !json.table.rows) {
-    return [];
+  if (!json.table) {
+    return {
+      headers: [],
+      rows: []
+    };
   }
 
-  return json.table.rows.map(row =>
-    row.c.map(cell => {
+  const headers = (json.table.cols || []).map((col, index) => {
+    if (col.label && col.label.trim() !== "") {
+      return col.label;
+    }
+    return `Column ${index + 1}`;
+  });
+
+  const rows = (json.table.rows || []).map(row => {
+    return (json.table.cols || []).map((col, index) => {
+      const cell = row.c && row.c[index] ? row.c[index] : null;
+
       if (!cell) return "";
-      return cell.f || cell.v || "";
-    })
-  );
+
+      return cell.f !== undefined ? cell.f : cell.v !== undefined ? cell.v : "";
+    });
+  });
+
+  return {
+    headers,
+    rows
+  };
 }
 
 
@@ -81,7 +98,8 @@ async function loadDashboardBalance() {
   container.innerHTML = `<p class="loading">Loading balance...</p>`;
 
   try {
-    const rows = await fetchSheetData(DASHBOARD_SHEET, DASHBOARD_RANGE);
+    const tableData = await fetchGoogleSheetTable(DASHBOARD_SHEET, DASHBOARD_RANGE);
+    const rows = tableData.rows;
 
     if (!rows.length) {
       container.innerHTML = "<p>No balance data found.</p>";
@@ -128,14 +146,14 @@ async function loadSheet(sheetName) {
   container.innerHTML = `<p class="loading">Loading ${sheetName}...</p>`;
 
   try {
-    const rows = await fetchSheetData(sheetName);
+    const tableData = await fetchGoogleSheetTable(sheetName);
 
-    if (!rows.length) {
+    if (!tableData.rows.length) {
       container.innerHTML = "<p>No data found in this sheet.</p>";
       return;
     }
 
-    renderTable(rows, container);
+    renderTable(tableData.headers, tableData.rows, container);
 
   } catch (error) {
     container.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
@@ -144,29 +162,41 @@ async function loadSheet(sheetName) {
 
 
 // ===============================
-// TABLE RENDERING
+// TABLE RENDERING WITH PROPER HEADER
 // ===============================
 
-function renderTable(rows, container) {
+function renderTable(headers, rows, container) {
   const table = document.createElement("table");
 
-  rows.forEach((row, rowIndex) => {
+  // Create table header
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+
+  headers.forEach(header => {
+    const th = document.createElement("th");
+    th.textContent = header || "";
+    headerRow.appendChild(th);
+  });
+
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  // Create table body
+  const tbody = document.createElement("tbody");
+
+  rows.forEach(row => {
     const tr = document.createElement("tr");
 
     row.forEach(cell => {
-      const cellElement = document.createElement(rowIndex === 0 ? "th" : "td");
-
-      if (rowIndex === 0) {
-        cellElement.textContent = cell || "";
-      } else {
-        cellElement.innerHTML = linkifyCell(cell);
-      }
-
-      tr.appendChild(cellElement);
+      const td = document.createElement("td");
+      td.innerHTML = linkifyCell(cell);
+      tr.appendChild(td);
     });
 
-    table.appendChild(tr);
+    tbody.appendChild(tr);
   });
+
+  table.appendChild(tbody);
 
   container.innerHTML = "";
   container.appendChild(table);
