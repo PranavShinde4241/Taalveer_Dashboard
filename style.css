@@ -170,28 +170,45 @@ header p {
 .table-container {
   width: 100%;
   overflow-x: auto;
+  margin-top: 16px;
 }
 
 table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
-  min-width: 700px;
+  font-size: 14px;
 }
 
-th, td {
-  padding: 10px;
+thead th {
+  background: #9b0000;
+  color: white;
+  font-weight: bold;
+  text-align: center;
+  padding: 12px 10px;
+  border: 1px solid #ffffff;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+tbody td {
+  padding: 10px 12px;
   border: 1px solid #ddd;
   text-align: left;
   vertical-align: top;
+  white-space: normal;
+  max-width: 260px;
+  word-break: break-word;
 }
 
-th {
-  background: #9b0000;
-  color: white;
-}
-
-tr:nth-child(even) {
+tbody tr:nth-child(even) {
   background: #f9f9f9;
+}
+
+tbody tr:nth-child(odd) {
+  background: #ffffff;
 }
 
 a {
