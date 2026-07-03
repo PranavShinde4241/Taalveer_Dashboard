@@ -23,11 +23,36 @@ const ALLOWED_SHEETS = ["व्यवहार_नोंद", "Event_Show_Master
 const DASHBOARD_SHEET = "Dashboard_Summary";
 const DASHBOARD_RANGE = "A4:B6";
 
-// Important:
-// We force table sheets to start from A1 so actual Google Sheet headers are captured.
 const TABLE_RANGES = {
   "व्यवहार_नोंद": "A1:AZ1000",
   "Event_Show_Master": "A1:AZ1000"
+};
+
+
+// Manual headers for transaction sheet.
+// This prevents Column 1, Column 3, Column 4 issue.
+const MANUAL_HEADERS = {
+  "व्यवहार_नोंद": [
+    "Sr No",
+    "Transaction ID",
+    "Transaction Date",
+    "Transaction Time",
+    "Event ID",
+    "Event/Show Name",
+    "Month",
+    "Year",
+    "Category",
+    "Sub Category",
+    "Type",
+    "Transaction Details",
+    "Payment Mode",
+    "Amount",
+    "Person Name",
+    "Role",
+    "Proof / Reference",
+    "Proof Date",
+    "Notes"
+  ]
 };
 
 
@@ -41,15 +66,13 @@ window.onload = function () {
 
 
 // ===============================
-// GOOGLE SHEET RAW ROW FETCH FUNCTION
+// GOOGLE SHEET RAW DATA FETCH
 // ===============================
 
-async function fetchSheetRows(sheetName, range = "") {
+async function fetchSheetData(sheetName, range = "") {
   const encodedSheet = encodeURIComponent(sheetName);
   const encodedRange = range ? `&range=${encodeURIComponent(range)}` : "";
 
-  // headers=0 is very important.
-  // It prevents Google from treating first transaction row as header.
   const url =
     `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodedSheet}${encodedRange}&headers=0&_=${Date.now()}`;
 
@@ -63,13 +86,25 @@ async function fetchSheetRows(sheetName, range = "") {
   const jsonText = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
   const json = JSON.parse(jsonText);
 
-  if (!json.table || !json.table.rows) {
-    return [];
+  if (!json.table) {
+    return {
+      colLabels: [],
+      rows: []
+    };
   }
 
-  const colCount = json.table.cols ? json.table.cols.length : 0;
+  const cols = json.table.cols || [];
 
-  let rows = json.table.rows.map(row => {
+  const colLabels = cols.map((col, index) => {
+    if (col.label && String(col.label).trim() !== "") {
+      return String(col.label).trim();
+    }
+    return `Column ${index + 1}`;
+  });
+
+  const colCount = cols.length;
+
+  let rows = (json.table.rows || []).map(row => {
     const output = [];
 
     for (let i = 0; i < colCount; i++) {
@@ -87,12 +122,15 @@ async function fetchSheetRows(sheetName, range = "") {
 
   rows = trimEmptyRowsAndColumns(rows);
 
-  return rows;
+  return {
+    colLabels,
+    rows
+  };
 }
 
 
 // ===============================
-// REMOVE EMPTY ROWS AND EXTRA BLANK COLUMNS
+// CLEAN EMPTY ROWS / COLUMNS
 // ===============================
 
 function trimEmptyRowsAndColumns(rows) {
@@ -114,9 +152,7 @@ function trimEmptyRowsAndColumns(rows) {
     });
   });
 
-  cleanedRows = cleanedRows.map(row => row.slice(0, lastUsedColumnIndex + 1));
-
-  return cleanedRows;
+  return cleanedRows.map(row => row.slice(0, lastUsedColumnIndex + 1));
 }
 
 
@@ -129,7 +165,8 @@ async function loadDashboardBalance() {
   container.innerHTML = `<p class="loading">Loading balance...</p>`;
 
   try {
-    const rows = await fetchSheetRows(DASHBOARD_SHEET, DASHBOARD_RANGE);
+    const data = await fetchSheetData(DASHBOARD_SHEET, DASHBOARD_RANGE);
+    const rows = data.rows;
 
     if (!rows.length) {
       container.innerHTML = "<p>No balance data found.</p>";
@@ -173,19 +210,18 @@ async function loadSheet(sheetName) {
   const container = document.getElementById("tableContainer");
 
   title.textContent = sheetName;
-  container.innerHTML = `<p class="loading">Loading ${sheetName}...</p>`;
+  container.innerHTML = `<p class="loading">Loading ${escapeHtml(sheetName)}...</p>`;
 
   try {
     const range = TABLE_RANGES[sheetName] || "A1:AZ1000";
-    const rows = await fetchSheetRows(sheetName, range);
+    const data = await fetchSheetData(sheetName, range);
 
-    if (!rows.length) {
+    if (!data.rows.length) {
       container.innerHTML = "<p>No data found in this sheet.</p>";
       return;
     }
 
-    const tableData = prepareTableData(sheetName, rows);
-
+    const tableData = prepareTableData(sheetName, data);
     renderTable(tableData.headers, tableData.bodyRows, container);
 
   } catch (error) {
@@ -195,103 +231,111 @@ async function loadSheet(sheetName) {
 
 
 // ===============================
-// PREPARE HEADER AND BODY ROWS
+// PREPARE HEADER AND BODY
 // ===============================
 
-function prepareTableData(sheetName, rows) {
-  let headerIndex = findHeaderRowIndex(sheetName, rows);
+function prepareTableData(sheetName, data) {
+  let rows = data.rows;
+  let headers = [];
+  let bodyRows = [];
 
-  let headers = rows[headerIndex] || [];
-  let bodyRows = rows.slice(headerIndex + 1);
+  const firstRow = rows[0] || [];
 
-  // Fallback:
-  // If Google still gives data row as header, manually fix it.
-  if (looksLikeTransactionDataRow(headers) && sheetName === "व्यवहार_नोंद") {
-    bodyRows = rows;
-    headers = [
-      "Sr No",
-      "Transaction ID",
-      "Transaction Date",
-      "Transaction Time",
-      "Event ID",
-      "Event/Show Name",
-      "Month",
-      "Year",
-      "Category",
-      "Sub Category",
-      "Type",
-      "Transaction Details",
-      "Payment Mode",
-      "Amount",
-      "Person Name",
-      "Role",
-      "Proof / Reference",
-      "Notes"
-    ];
+  // Case 1: Manual fixed headers for व्यवहार_नोंद
+  if (MANUAL_HEADERS[sheetName]) {
+    headers = [...MANUAL_HEADERS[sheetName]];
+
+    if (rowLooksLikeHeader(firstRow, sheetName)) {
+      bodyRows = rows.slice(1);
+    } else {
+      bodyRows = rows;
+    }
   }
 
-  headers = headers.map((header, index) => {
-    const text = String(header).trim();
-    return text !== "" ? text : `Column ${index + 1}`;
+  // Case 2: Use actual first row as header if available
+  else if (rowLooksLikeHeader(firstRow, sheetName)) {
+    headers = firstRow.map((x, i) => String(x).trim() || `Column ${i + 1}`);
+    bodyRows = rows.slice(1);
+  }
+
+  // Case 3: Use Google column labels if meaningful
+  else if (hasMeaningfulColumnLabels(data.colLabels)) {
+    headers = data.colLabels;
+    bodyRows = rows;
+  }
+
+  // Case 4: Last fallback
+  else {
+    const maxCols = getMaxColumnCount(rows);
+    headers = Array.from({ length: maxCols }, (_, i) => `Column ${i + 1}`);
+    bodyRows = rows;
+  }
+
+  return normaliseTable(headers, bodyRows);
+}
+
+
+function rowLooksLikeHeader(row, sheetName) {
+  const text = row.map(x => String(x).trim().toLowerCase()).join("|");
+
+  if (sheetName === "व्यवहार_नोंद") {
+    return text.includes("sr no") && text.includes("transaction id");
+  }
+
+  if (sheetName === "Event_Show_Master") {
+    return text.includes("event id") || text.includes("event/show name");
+  }
+
+  return false;
+}
+
+
+function hasMeaningfulColumnLabels(labels) {
+  if (!labels || !labels.length) return false;
+
+  const meaningful = labels.filter(label => {
+    const text = String(label).trim().toLowerCase();
+    return text !== "" && !text.startsWith("column ");
   });
 
-  bodyRows = bodyRows.filter(row => {
+  return meaningful.length >= Math.ceil(labels.length / 2);
+}
+
+
+function normaliseTable(headers, rows) {
+  rows = rows.filter(row => {
     return row.some(cell => String(cell).trim() !== "");
   });
 
-  // Remove repeated header row if it appears again inside body
-  bodyRows = bodyRows.filter(row => {
-    return row.join("|") !== headers.join("|");
+  const maxCols = Math.max(headers.length, getMaxColumnCount(rows));
+
+  while (headers.length < maxCols) {
+    headers.push(`Column ${headers.length + 1}`);
+  }
+
+  headers = headers.slice(0, maxCols);
+
+  rows = rows.map(row => {
+    const output = [...row];
+
+    while (output.length < maxCols) {
+      output.push("");
+    }
+
+    return output.slice(0, maxCols);
   });
 
   return {
     headers,
-    bodyRows
+    bodyRows: rows
   };
 }
 
 
-// ===============================
-// FIND ACTUAL HEADER ROW
-// ===============================
+function getMaxColumnCount(rows) {
+  if (!rows.length) return 0;
 
-function findHeaderRowIndex(sheetName, rows) {
-  for (let i = 0; i < rows.length; i++) {
-    const rowText = rows[i].map(x => String(x).trim().toLowerCase()).join("|");
-
-    if (
-      sheetName === "व्यवहार_नोंद" &&
-      rowText.includes("sr no") &&
-      rowText.includes("transaction id")
-    ) {
-      return i;
-    }
-
-    if (
-      sheetName === "event_show_master" &&
-      rowText.includes("event id") &&
-      rowText.includes("event/show name")
-    ) {
-      return i;
-    }
-  }
-
-  // If exact header not found, use first non-empty row.
-  return 0;
-}
-
-
-// ===============================
-// CHECK IF HEADER IS ACTUALLY DATA ROW
-// ===============================
-
-function looksLikeTransactionDataRow(row) {
-  if (!row || row.length < 3) return false;
-
-  const firstCell = String(row[0]).trim();
-  const secondCell = String(row[1]).trim();
-
-  return /^\d+$/.test(firstCell) && secondCell.startsWith("TXN-");
+  return Math.max(...rows.map(row => row.length));
 }
 
 
@@ -357,7 +401,7 @@ function linkifyCell(value) {
 
 
 // ===============================
-// SECURITY HELPER
+// HTML SAFETY
 // ===============================
 
 function escapeHtml(value) {
