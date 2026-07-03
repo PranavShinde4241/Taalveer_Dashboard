@@ -1,176 +1,8 @@
-* {
-  box-sizing: border-box;
-  font-family: Arial, sans-serif;
-}
-
-body {
-  margin: 0;
-  background: #f4f6f9;
-  color: #111827;
-}
-
-/* Login */
-.login-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #8b0000, #f6b73c);
-}
-
-.login-card {
-  width: 360px;
-  background: #ffffff;
-  padding: 30px;
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  text-align: center;
-}
-
-.login-card h1 {
-  margin-bottom: 5px;
-  color: #8b0000;
-}
-
-.login-card p {
-  margin-bottom: 20px;
-  color: #555;
-}
-
-.login-card input {
-  width: 100%;
-  padding: 12px;
-  margin: 8px 0;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-}
-
-.login-card button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 12px;
-  border: none;
-  border-radius: 8px;
-  background: #8b0000;
-  color: white;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.login-card button:hover {
-  background: #a50000;
-}
-
-.error {
-  color: red;
-  margin-top: 10px;
-}
-
-/* Dashboard */
-.main-container {
-  padding: 24px;
-}
-
-header {
-  background: #9b0000;
-  color: white;
-  padding: 22px 28px;
-  border-radius: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-header h1 {
-  margin: 0;
-  font-size: 36px;
-}
-
-header p {
-  margin: 6px 0 0;
-  font-size: 18px;
-}
-
-.logout-btn {
-  background: white;
-  color: #9b0000;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.summary-section,
-.table-section {
-  background: white;
-  margin-top: 24px;
-  padding: 26px;
-  border-radius: 12px;
-  box-shadow: 0 3px 12px rgba(0,0,0,0.08);
-}
-
-.summary-section h2,
-.table-section h2 {
-  font-size: 28px;
-  margin-top: 0;
-}
-
-.sheet-note {
-  color: #666;
-  font-size: 15px;
-}
-
-.balance-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-top: 18px;
-}
-
-.balance-card {
-  background: #fff6e6;
-  border-left: 6px solid #9b0000;
-  padding: 18px;
-  border-radius: 10px;
-}
-
-.balance-card h3 {
-  margin: 0 0 8px;
-  color: #9b0000;
-}
-
-.balance-card p {
-  margin: 0;
-  font-size: 22px;
-  font-weight: bold;
-}
-
-.button-section {
-  margin-top: 24px;
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.button-section button {
-  background: #222;
-  color: white;
-  border: none;
-  padding: 14px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
-}
-
-.button-section button:hover {
-  background: #444;
-}
-
 .table-container {
   width: 100%;
   overflow-x: auto;
   margin-top: 16px;
+  border-radius: 8px;
 }
 
 table {
@@ -178,10 +10,11 @@ table {
   min-width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  background: white;
 }
 
 thead th {
-  background: #9b0000;
+  background: #00618a;
   color: white;
   font-weight: bold;
   text-align: center;
@@ -190,12 +23,12 @@ thead th {
   white-space: nowrap;
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 5;
 }
 
 tbody td {
   padding: 10px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid #d6d6d6;
   text-align: left;
   vertical-align: top;
   white-space: normal;
@@ -204,11 +37,11 @@ tbody td {
 }
 
 tbody tr:nth-child(even) {
-  background: #f9f9f9;
+  background: #ffffff;
 }
 
 tbody tr:nth-child(odd) {
-  background: #ffffff;
+  background: #c7eaf7;
 }
 
 a {
@@ -219,8 +52,4 @@ a {
 
 a:hover {
   text-decoration: underline;
-}
-
-.loading {
-  color: #777;
 }
