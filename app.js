@@ -1,13 +1,23 @@
 // ===============================
+// DASHBOARD PAGE ACCESS CHECK
+// ===============================
+
+if (sessionStorage.getItem("loggedIn") !== "true") {
+  window.location.href = "index.html";
+}
+
+function logout() {
+  sessionStorage.removeItem("loggedIn");
+  window.location.href = "index.html";
+}
+
+
+// ===============================
 // BASIC CONFIGURATION
 // ===============================
 
 // Your Google Sheet ID from the shared link
 const SPREADSHEET_ID = "1_nlRFxAST7ErzyqiBr9b_Tw8OhjNCAXz";
-
-// Basic website login
-const VALID_USERNAME = "guest";
-const VALID_PASSWORD = "taalveer@2026";
 
 // Allowed sheets only
 const ALLOWED_SHEETS = ["व्यवहार_नोंद", "Event_Show_Master"];
@@ -18,37 +28,11 @@ const DASHBOARD_RANGE = "A4:B6";
 
 
 // ===============================
-// LOGIN FUNCTIONS
+// LOAD DASHBOARD ON PAGE OPEN
 // ===============================
 
-function login() {
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value.trim();
-  const errorBox = document.getElementById("loginError");
-
-  if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-    sessionStorage.setItem("loggedIn", "true");
-
-    document.getElementById("loginPage").classList.add("hidden");
-    document.getElementById("mainPage").classList.remove("hidden");
-
-    loadDashboardBalance();
-  } else {
-    errorBox.textContent = "Invalid username or password.";
-  }
-}
-
-function logout() {
-  sessionStorage.removeItem("loggedIn");
-  location.reload();
-}
-
 window.onload = function () {
-  if (sessionStorage.getItem("loggedIn") === "true") {
-    document.getElementById("loginPage").classList.add("hidden");
-    document.getElementById("mainPage").classList.remove("hidden");
-    loadDashboardBalance();
-  }
+  loadDashboardBalance();
 };
 
 
@@ -122,7 +106,7 @@ async function loadDashboardBalance() {
     });
 
   } catch (error) {
-    container.innerHTML = `<p class="error">${error.message}</p>`;
+    container.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
   }
 }
 
@@ -154,7 +138,7 @@ async function loadSheet(sheetName) {
     renderTable(rows, container);
 
   } catch (error) {
-    container.innerHTML = `<p class="error">${error.message}</p>`;
+    container.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
   }
 }
 
@@ -202,7 +186,8 @@ function linkifyCell(value) {
 
   if (urlRegex.test(text)) {
     return escapeHtml(text).replace(urlRegex, function (url) {
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer">View Proof</a>`;
+      const cleanUrl = url.replaceAll("&amp;", "&");
+      return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">View Proof</a>`;
     });
   }
 
