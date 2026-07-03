@@ -95,7 +95,7 @@ body {
   padding: 24px;
 }
 
-header {
+.dashboard-header {
   background: #9b0000;
   color: white;
   padding: 22px 28px;
@@ -106,13 +106,13 @@ header {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
 }
 
-header h1 {
+.dashboard-header h1 {
   margin: 0;
   font-size: 38px;
   line-height: 1.2;
 }
 
-header p {
+.dashboard-header p {
   margin: 7px 0 0;
   font-size: 18px;
 }
@@ -278,17 +278,17 @@ a:hover {
     padding: 14px;
   }
 
-  header {
+  .dashboard-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 14px;
   }
 
-  header h1 {
+  .dashboard-header h1 {
     font-size: 28px;
   }
 
-  header p {
+  .dashboard-header p {
     font-size: 15px;
   }
 
