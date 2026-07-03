@@ -6,11 +6,7 @@
 body {
   margin: 0;
   background: #f4f6f9;
-  color: #222;
-}
-
-.hidden {
-  display: none;
+  color: #111827;
 }
 
 /* Login */
@@ -66,19 +62,19 @@ body {
 }
 
 .error {
-  color: red !important;
+  color: red;
   margin-top: 10px;
 }
 
-/* Main */
+/* Dashboard */
 .main-container {
-  padding: 20px;
+  padding: 24px;
 }
 
 header {
-  background: #8b0000;
+  background: #9b0000;
   color: white;
-  padding: 18px 24px;
+  padding: 22px 28px;
   border-radius: 12px;
   display: flex;
   justify-content: space-between;
@@ -87,15 +83,17 @@ header {
 
 header h1 {
   margin: 0;
+  font-size: 36px;
 }
 
 header p {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
+  font-size: 18px;
 }
 
 .logout-btn {
   background: white;
-  color: #8b0000;
+  color: #9b0000;
   border: none;
   padding: 10px 16px;
   border-radius: 8px;
@@ -106,34 +104,40 @@ header p {
 .summary-section,
 .table-section {
   background: white;
-  margin-top: 20px;
-  padding: 20px;
+  margin-top: 24px;
+  padding: 26px;
   border-radius: 12px;
   box-shadow: 0 3px 12px rgba(0,0,0,0.08);
 }
 
+.summary-section h2,
+.table-section h2 {
+  font-size: 28px;
+  margin-top: 0;
+}
+
 .sheet-note {
-  color: #777;
-  font-size: 14px;
+  color: #666;
+  font-size: 15px;
 }
 
 .balance-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 15px;
-  margin-top: 15px;
+  gap: 16px;
+  margin-top: 18px;
 }
 
 .balance-card {
   background: #fff6e6;
-  border-left: 6px solid #8b0000;
+  border-left: 6px solid #9b0000;
   padding: 18px;
   border-radius: 10px;
 }
 
 .balance-card h3 {
   margin: 0 0 8px;
-  color: #8b0000;
+  color: #9b0000;
 }
 
 .balance-card p {
@@ -143,9 +147,9 @@ header p {
 }
 
 .button-section {
-  margin-top: 20px;
+  margin-top: 24px;
   display: flex;
-  gap: 12px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
@@ -153,10 +157,10 @@ header p {
   background: #222;
   color: white;
   border: none;
-  padding: 13px 18px;
+  padding: 14px 20px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .button-section button:hover {
@@ -182,10 +186,8 @@ th, td {
 }
 
 th {
-  background: #8b0000;
+  background: #9b0000;
   color: white;
-  position: sticky;
-  top: 0;
 }
 
 tr:nth-child(even) {
