@@ -12,15 +12,12 @@ function login() {
 
   if (username === VALID_USERNAME && password === VALID_PASSWORD) {
     sessionStorage.setItem("loggedIn", "true");
-
-    // Open dashboard as a separate page
     window.location.href = "dashboard.html";
   } else {
     errorBox.textContent = "Invalid username or password.";
   }
 }
 
-// If already logged in, directly open dashboard
 window.onload = function () {
   if (sessionStorage.getItem("loggedIn") === "true") {
     window.location.href = "dashboard.html";
