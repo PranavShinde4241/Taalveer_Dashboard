@@ -13,7 +13,7 @@ function login() {
   if (username === VALID_USERNAME && password === VALID_PASSWORD) {
     sessionStorage.setItem("loggedIn", "true");
 
-    // Redirect to separate dashboard page
+    // Open dashboard as a separate page
     window.location.href = "dashboard.html";
   } else {
     errorBox.textContent = "Invalid username or password.";
