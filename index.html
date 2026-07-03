@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>तालवीर ढोल-ताशा पथक | Audit Dashboard</title>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- LOGIN PAGE -->
+  <div id="loginPage" class="login-container">
+    <div class="login-card">
+      <h1>तालवीर ढोल-ताशा पथक</h1>
+      <p>Expense & Audit Dashboard</p>
+
+      <input type="text" id="username" placeholder="Username" />
+      <input type="password" id="password" placeholder="Password" />
+
+      <button onclick="login()">Login</button>
+
+      <p id="loginError" class="error"></p>
+    </div>
+  </div>
+
+  <!-- MAIN WEBSITE -->
+  <div id="mainPage" class="main-container hidden">
+
+    <header>
+      <div>
+        <h1>तालवीर ढोल-ताशा पथक</h1>
+        <p>Expense, Audit & Event Records</p>
+      </div>
+
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </header>
+
+    <section class="summary-section">
+      <h2>Available Balance Summary</h2>
+      <p class="sheet-note">Source: Dashboard_Summary!A4:B6</p>
+
+      <div id="balanceCards" class="balance-grid">
+        <p>Loading balance...</p>
+      </div>
+    </section>
+
+    <section class="button-section">
+      <button onclick="loadSheet('व्यवहार_नोंद')">व्यवहार_नोंद</button>
+      <button onclick="loadSheet('Event_Show_Master')">Event_Show_Master</button>
+    </section>
+
+    <section class="table-section">
+      <h2 id="tableTitle">Select a sheet</h2>
+      <div id="tableContainer" class="table-container">
+        <p>Please click one of the above buttons to view data.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
