@@ -2,13 +2,17 @@
 // BASIC CONFIGURATION
 // ===============================
 
+// Your Google Sheet ID from the shared link
 const SPREADSHEET_ID = "1_nlRFxAST7ErzyqiBr9b_Tw8OhjNCAXz";
 
+// Basic website login
 const VALID_USERNAME = "guest";
 const VALID_PASSWORD = "taalveer@2026";
 
+// Allowed sheets only
 const ALLOWED_SHEETS = ["व्यवहार_नोंद", "Event_Show_Master"];
 
+// Dashboard range
 const DASHBOARD_SHEET = "Dashboard_Summary";
 const DASHBOARD_RANGE = "A4:B6";
 
@@ -49,63 +53,38 @@ window.onload = function () {
 
 
 // ===============================
-// GOOGLE SHEET JSONP FETCH
-// This fixes "Failed to fetch" / CORS issue
+// GOOGLE SHEET FETCH FUNCTION
 // ===============================
 
-function fetchSheetData(sheetName, range = "") {
-  return new Promise((resolve, reject) => {
-    const callbackName = "googleSheetCallback_" + Date.now();
+async function fetchSheetData(sheetName, range = "") {
+  const encodedSheet = encodeURIComponent(sheetName);
+  const encodedRange = range ? `&range=${encodeURIComponent(range)}` : "";
 
-    window[callbackName] = function (data) {
-      try {
-        delete window[callbackName];
-        document.body.removeChild(script);
+  const url =
+    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodedSheet}${encodedRange}`;
 
-        if (!data || !data.table || !data.table.rows) {
-          resolve([]);
-          return;
-        }
+  const response = await fetch(url);
 
-        const rows = data.table.rows.map(row => {
-          return row.c.map(cell => {
-            if (!cell) return "";
-            return cell.f || cell.v || "";
-          });
-        });
+  if (!response.ok) {
+    throw new Error("Unable to access Google Sheet. Please check sharing permissions.");
+  }
 
-        resolve(rows);
-      } catch (error) {
-        reject(error);
-      }
-    };
+  const text = await response.text();
 
-    const encodedSheet = encodeURIComponent(sheetName);
+  // Google returns JSON wrapped inside: google.visualization.Query.setResponse(...)
+  const jsonText = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
+  const json = JSON.parse(jsonText);
 
-    let url =
-      `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?` +
-      `tqx=responseHandler:${callbackName}` +
-      `&sheet=${encodedSheet}`;
+  if (!json.table || !json.table.rows) {
+    return [];
+  }
 
-    if (range) {
-      url += `&range=${encodeURIComponent(range)}`;
-    }
-
-    const script = document.createElement("script");
-    script.src = url;
-
-    script.onerror = function () {
-      delete window[callbackName];
-      document.body.removeChild(script);
-      reject(
-        new Error(
-          "Google Sheet could not be loaded. Please check sheet sharing permission and sheet name."
-        )
-      );
-    };
-
-    document.body.appendChild(script);
-  });
+  return json.table.rows.map(row =>
+    row.c.map(cell => {
+      if (!cell) return "";
+      return cell.f || cell.v || "";
+    })
+  );
 }
 
 
@@ -211,7 +190,7 @@ function renderTable(rows, container) {
 
 
 // ===============================
-// DRIVE / PROOF LINKS CLICKABLE
+// LINKIFY DRIVE / PROOF LINKS
 // ===============================
 
 function linkifyCell(value) {
@@ -232,7 +211,7 @@ function linkifyCell(value) {
 
 
 // ===============================
-// HTML SECURITY HELPER
+// SECURITY HELPER
 // ===============================
 
 function escapeHtml(value) {
