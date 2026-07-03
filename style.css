@@ -1,8 +1,218 @@
+* {
+  box-sizing: border-box;
+  font-family: Arial, "Noto Sans Devanagari", sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f4f6f9;
+  color: #111827;
+}
+
+.hidden {
+  display: none;
+}
+
+
+/* ===============================
+   LOGIN PAGE
+================================ */
+
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #8b0000, #f6b73c);
+  padding: 20px;
+}
+
+.login-card {
+  width: 380px;
+  background: #ffffff;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.22);
+  text-align: center;
+}
+
+.login-card h1 {
+  margin: 0 0 8px;
+  color: #8b0000;
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.login-card p {
+  margin: 0 0 24px;
+  color: #555;
+  font-size: 16px;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 13px 14px;
+  margin: 8px 0;
+  border: 1px solid #ccc;
+  border-radius: 9px;
+  font-size: 15px;
+  outline: none;
+}
+
+.login-card input:focus {
+  border-color: #8b0000;
+}
+
+.login-card button {
+  width: 100%;
+  padding: 13px;
+  margin-top: 14px;
+  border: none;
+  border-radius: 9px;
+  background: #8b0000;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.login-card button:hover {
+  background: #a50000;
+}
+
+.error {
+  color: red !important;
+  margin-top: 12px !important;
+  font-size: 14px !important;
+}
+
+
+/* ===============================
+   DASHBOARD PAGE
+================================ */
+
+.main-container {
+  padding: 24px;
+}
+
+header {
+  background: #9b0000;
+  color: white;
+  padding: 22px 28px;
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 38px;
+  line-height: 1.2;
+}
+
+header p {
+  margin: 7px 0 0;
+  font-size: 18px;
+}
+
+.logout-btn {
+  background: white;
+  color: #9b0000;
+  border: none;
+  padding: 11px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 15px;
+}
+
+.logout-btn:hover {
+  background: #f7f7f7;
+}
+
+.summary-section,
+.table-section {
+  background: white;
+  margin-top: 24px;
+  padding: 26px;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.summary-section h2,
+.table-section h2 {
+  font-size: 30px;
+  margin: 0 0 14px;
+  color: #111827;
+}
+
+.sheet-note {
+  color: #666;
+  font-size: 15px;
+  margin-bottom: 18px;
+}
+
+.balance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.balance-card {
+  background: #fff6e6;
+  border-left: 6px solid #9b0000;
+  padding: 18px;
+  border-radius: 11px;
+}
+
+.balance-card h3 {
+  margin: 0 0 9px;
+  color: #9b0000;
+  font-size: 18px;
+}
+
+.balance-card p {
+  margin: 0;
+  font-size: 24px;
+  font-weight: bold;
+  color: #111827;
+}
+
+.button-section {
+  margin-top: 24px;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.button-section button {
+  background: #222;
+  color: white;
+  border: none;
+  padding: 14px 20px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.button-section button:hover {
+  background: #444;
+}
+
+
+/* ===============================
+   TABLE DESIGN
+================================ */
+
 .table-container {
   width: 100%;
   overflow-x: auto;
-  margin-top: 16px;
-  border-radius: 8px;
+  margin-top: 18px;
+  border-radius: 10px;
 }
 
 table {
@@ -36,12 +246,12 @@ tbody td {
   word-break: break-word;
 }
 
-tbody tr:nth-child(even) {
-  background: #ffffff;
-}
-
 tbody tr:nth-child(odd) {
   background: #c7eaf7;
+}
+
+tbody tr:nth-child(even) {
+  background: #ffffff;
 }
 
 a {
@@ -52,4 +262,51 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+.loading {
+  color: #777;
+}
+
+
+/* ===============================
+   MOBILE RESPONSIVE
+================================ */
+
+@media (max-width: 768px) {
+  .main-container {
+    padding: 14px;
+  }
+
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  header h1 {
+    font-size: 28px;
+  }
+
+  header p {
+    font-size: 15px;
+  }
+
+  .summary-section,
+  .table-section {
+    padding: 18px;
+  }
+
+  .summary-section h2,
+  .table-section h2 {
+    font-size: 24px;
+  }
+
+  .login-card {
+    width: 100%;
+  }
+
+  .login-card h1 {
+    font-size: 27px;
+  }
 }
