@@ -50,6 +50,8 @@ const DISPLAY_COLUMNS = {
     "Event ID",
     "Event/Show Name",
     "Event Date",
+    "Start Time",
+    "End Time",
     "Location",
     "Organizer/Client",
     "Expected Income",
@@ -84,6 +86,23 @@ const MANUAL_HEADERS = {
     "Proof Link",
     "Proof Date",
     "Notes"
+  ],
+
+  "Event_Show_Master": [
+    "Event ID",
+    "Event/Show Name",
+    "Event Date",
+    "Day",
+    "Start Time",
+    "End Time",
+    "Location",
+    "Organizer/Client",
+    "Expected Income",
+    "Actual Income",
+    "Actual Expense",
+    "Net Surplus/(Deficit)",
+    "Status",
+    "Remarks"
   ]
 };
 
@@ -131,6 +150,7 @@ async function fetchSheetData(sheetName, range = "") {
     if (col.label && String(col.label).trim() !== "") {
       return String(col.label).trim();
     }
+
     return `Column ${index + 1}`;
   });
 
@@ -371,11 +391,17 @@ function countHeaderKeywords(sheetName, row) {
         "event id",
         "event/show name",
         "event date",
+        "day",
+        "start time",
+        "end time",
         "location",
         "organizer/client",
         "expected income",
         "actual income",
-        "status"
+        "actual expense",
+        "net surplus/(deficit)",
+        "status",
+        "remarks"
       ];
 
   let count = 0;
@@ -460,6 +486,46 @@ function findColumnIndex(headers, requiredColumn) {
       "client",
       "organizer name",
       "client name"
+    ],
+
+    "expected income": [
+      "expected income",
+      "expected amount",
+      "estimated income"
+    ],
+
+    "actual income": [
+      "actual income",
+      "received income",
+      "total income"
+    ],
+
+    "actual expense": [
+      "actual expense",
+      "actual expenses",
+      "total expense",
+      "total expenses"
+    ],
+
+    "net surplus/(deficit)": [
+      "net surplus/(deficit)",
+      "net surplus / deficit",
+      "net surplus",
+      "surplus deficit",
+      "net surplus deficit",
+      "surplus/(deficit)"
+    ],
+
+    "start time": [
+      "start time",
+      "starting time",
+      "event start time"
+    ],
+
+    "end time": [
+      "end time",
+      "ending time",
+      "event end time"
     ]
   };
 
