@@ -29,8 +29,40 @@ const TABLE_RANGES = {
 };
 
 
-// Manual headers for transaction sheet.
-// This prevents Column 1, Column 3, Column 4 issue.
+// ===============================
+// SELECTED COLUMNS TO DISPLAY
+// ===============================
+
+const DISPLAY_COLUMNS = {
+  "व्यवहार_नोंद": [
+    "Sr No",
+    "Transaction Date",
+    "Transaction Time",
+    "Amount",
+    "Type",
+    "Transaction Details",
+    "Proof Link",
+    "Paid By / Received From",
+    "Payment Mode"
+  ],
+
+  "Event_Show_Master": [
+    "Event ID",
+    "Event/Show Name",
+    "Event Date",
+    "Location",
+    "Organizer/Client",
+    "Expected Income",
+    "Actual Income",
+    "Status"
+  ]
+};
+
+
+// ===============================
+// MANUAL HEADERS FOR व्यवहार_नोंद
+// ===============================
+
 const MANUAL_HEADERS = {
   "व्यवहार_नोंद": [
     "Sr No",
@@ -47,9 +79,9 @@ const MANUAL_HEADERS = {
     "Transaction Details",
     "Payment Mode",
     "Amount",
-    "Person Name",
+    "Paid By / Received From",
     "Role",
-    "Proof / Reference",
+    "Proof Link",
     "Proof Date",
     "Notes"
   ]
@@ -221,7 +253,14 @@ async function loadSheet(sheetName) {
       return;
     }
 
-    const tableData = prepareTableData(sheetName, data);
+    let tableData = prepareTableData(sheetName, data);
+
+    tableData = filterSelectedColumns(
+      sheetName,
+      tableData.headers,
+      tableData.bodyRows
+    );
+
     renderTable(tableData.headers, tableData.bodyRows, container);
 
   } catch (error) {
@@ -241,7 +280,6 @@ function prepareTableData(sheetName, data) {
 
   const firstRow = rows[0] || [];
 
-  // Case 1: Manual fixed headers for व्यवहार_नोंद
   if (MANUAL_HEADERS[sheetName]) {
     headers = [...MANUAL_HEADERS[sheetName]];
 
@@ -252,28 +290,196 @@ function prepareTableData(sheetName, data) {
     }
   }
 
-  // Case 2: Use actual first row as header if available
   else if (rowLooksLikeHeader(firstRow, sheetName)) {
     headers = firstRow.map((x, i) => String(x).trim() || `Column ${i + 1}`);
     bodyRows = rows.slice(1);
   }
 
-  // Case 3: Use Google column labels if meaningful
   else if (hasMeaningfulColumnLabels(data.colLabels)) {
     headers = data.colLabels;
     bodyRows = rows;
   }
 
-  // Case 4: Last fallback
   else {
     const maxCols = getMaxColumnCount(rows);
     headers = Array.from({ length: maxCols }, (_, i) => `Column ${i + 1}`);
     bodyRows = rows;
   }
 
-  return normaliseTable(headers, bodyRows);
+  const normalised = normaliseTable(headers, bodyRows);
+
+  normalised.bodyRows = removeRepeatedHeaderRows(
+    sheetName,
+    normalised.headers,
+    normalised.bodyRows
+  );
+
+  return normalised;
 }
 
+
+// ===============================
+// REMOVE EXTRA HEADER ROW FROM BODY
+// ===============================
+
+function removeRepeatedHeaderRows(sheetName, headers, rows) {
+  return rows.filter(row => {
+    const rowText = row
+      .map(x => normaliseHeaderName(x))
+      .join("|");
+
+    const headerText = headers
+      .map(x => normaliseHeaderName(x))
+      .join("|");
+
+    if (rowText === headerText) {
+      return false;
+    }
+
+    const headerKeywordCount = countHeaderKeywords(sheetName, row);
+
+    if (headerKeywordCount >= 3) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+
+function countHeaderKeywords(sheetName, row) {
+  const keywords = sheetName === "व्यवहार_नोंद"
+    ? [
+        "sr no",
+        "transaction id",
+        "transaction date",
+        "transaction time",
+        "event id",
+        "event/show name",
+        "month",
+        "year",
+        "category",
+        "sub category",
+        "type",
+        "transaction details",
+        "payment mode",
+        "amount",
+        "proof link",
+        "paid by / received from"
+      ]
+    : [
+        "event id",
+        "event/show name",
+        "event date",
+        "location",
+        "organizer/client",
+        "expected income",
+        "actual income",
+        "status"
+      ];
+
+  let count = 0;
+
+  row.forEach(cell => {
+    const value = normaliseHeaderName(cell);
+
+    if (keywords.includes(value)) {
+      count++;
+    }
+  });
+
+  return count;
+}
+
+
+// ===============================
+// SELECT ONLY REQUIRED COLUMNS
+// ===============================
+
+function filterSelectedColumns(sheetName, headers, rows) {
+  const selectedColumns = DISPLAY_COLUMNS[sheetName];
+
+  if (!selectedColumns) {
+    return {
+      headers,
+      bodyRows: rows
+    };
+  }
+
+  const selectedIndexes = selectedColumns.map(columnName => {
+    return findColumnIndex(headers, columnName);
+  });
+
+  const filteredRows = rows.map(row => {
+    return selectedIndexes.map(index => {
+      if (index === -1) return "";
+      return row[index] || "";
+    });
+  });
+
+  return {
+    headers: selectedColumns,
+    bodyRows: filteredRows
+  };
+}
+
+
+function findColumnIndex(headers, requiredColumn) {
+  const required = normaliseHeaderName(requiredColumn);
+
+  const aliases = {
+    "proof link": [
+      "proof link",
+      "proof link/file name",
+      "proof/file name",
+      "proof reference",
+      "proof / reference",
+      "proof",
+      "file name"
+    ],
+
+    "paid by / received from": [
+      "paid by / received from",
+      "paid by",
+      "received from",
+      "person name",
+      "name",
+      "member name"
+    ],
+
+    "event/show name": [
+      "event/show name",
+      "event name",
+      "show name",
+      "event show name"
+    ],
+
+    "organizer/client": [
+      "organizer/client",
+      "organizer",
+      "client",
+      "organizer name",
+      "client name"
+    ]
+  };
+
+  const possibleNames = aliases[required] || [required];
+
+  for (let i = 0; i < headers.length; i++) {
+    const current = normaliseHeaderName(headers[i]);
+
+    if (possibleNames.includes(current)) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+
+// ===============================
+// HEADER DETECTION
+// ===============================
 
 function rowLooksLikeHeader(row, sheetName) {
   const text = row.map(x => String(x).trim().toLowerCase()).join("|");
@@ -336,6 +542,14 @@ function getMaxColumnCount(rows) {
   if (!rows.length) return 0;
 
   return Math.max(...rows.map(row => row.length));
+}
+
+
+function normaliseHeaderName(value) {
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
 }
 
 
