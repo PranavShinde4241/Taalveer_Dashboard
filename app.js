@@ -18,14 +18,19 @@ function logout() {
 
 const SPREADSHEET_ID = "1_nlRFxAST7ErzyqiBr9b_Tw8OhjNCAXz";
 
-const ALLOWED_SHEETS = ["व्यवहार_नोंद", "Event_Show_Master"];
+const ALLOWED_SHEETS = [
+  "व्यवहार_नोंद",
+  "Event_Show_Master",
+  "Income_नोंद"
+];
 
 const DASHBOARD_SHEET = "Dashboard_Summary";
 const DASHBOARD_RANGE = "A4:B6";
 
 const TABLE_RANGES = {
   "व्यवहार_नोंद": "A1:AZ1000",
-  "Event_Show_Master": "A1:AZ1000"
+  "Event_Show_Master": "A1:AZ1000",
+  "Income_नोंद": "A1:AZ1000"
 };
 
 
@@ -50,19 +55,23 @@ const DISPLAY_COLUMNS = {
     "Event ID",
     "Event/Show Name",
     "Event Date",
+    "Day",
     "Start Time",
     "End Time",
     "Location",
     "Organizer/Client",
     "Expected Income",
     "Actual Income",
-    "Status"
+    "Actual Expense",
+    "Net Surplus/(Deficit)",
+    "Status",
+    "Remarks"
   ]
 };
 
 
 // ===============================
-// MANUAL HEADERS FOR व्यवहार_नोंद
+// MANUAL HEADERS
 // ===============================
 
 const MANUAL_HEADERS = {
@@ -111,73 +120,131 @@ const MANUAL_HEADERS = {
 // LOAD DASHBOARD ON PAGE OPEN
 // ===============================
 
-window.onload = function () {
+document.addEventListener("DOMContentLoaded", function () {
   loadDashboardBalance();
-};
+});
 
 
 // ===============================
-// GOOGLE SHEET RAW DATA FETCH
+// GOOGLE SHEET JSONP DATA FETCH
+// No fetch() used, so CORS failed-fetch issue is avoided
 // ===============================
 
-async function fetchSheetData(sheetName, range = "") {
-  const encodedSheet = encodeURIComponent(sheetName);
-  const encodedRange = range ? `&range=${encodeURIComponent(range)}` : "";
+function fetchSheetData(sheetName, range = "") {
+  return new Promise((resolve, reject) => {
+    const callbackName =
+      "sheetCallback_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
 
-  const url =
-    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodedSheet}${encodedRange}&headers=0&_=${Date.now()}`;
+    const encodedSheet = encodeURIComponent(sheetName);
+    const encodedRange = range ? `&range=${encodeURIComponent(range)}` : "";
 
-  const response = await fetch(url);
+    const url =
+      `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq` +
+      `?tqx=out:json;responseHandler:${callbackName}` +
+      `&sheet=${encodedSheet}` +
+      `${encodedRange}` +
+      `&headers=0` +
+      `&_=${Date.now()}`;
 
-  if (!response.ok) {
-    throw new Error("Unable to access Google Sheet. Please check sharing permissions.");
-  }
+    const script = document.createElement("script");
 
-  const text = await response.text();
-  const jsonText = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
-  const json = JSON.parse(jsonText);
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(
+        new Error(
+          "Unable to load Google Sheet data. Please confirm the sheet is shared as Anyone with the link → Viewer."
+        )
+      );
+    }, 20000);
 
-  if (!json.table) {
-    return {
-      colLabels: [],
-      rows: []
+    window[callbackName] = function (json) {
+      clearTimeout(timeout);
+      cleanup();
+
+      if (!json || json.status === "error") {
+        let msg = "Google Sheet returned an error.";
+
+        if (json && json.errors && json.errors.length) {
+          msg = json.errors
+            .map(e => e.detailed_message || e.message)
+            .join(" | ");
+        }
+
+        reject(new Error(msg));
+        return;
+      }
+
+      if (!json.table) {
+        resolve({
+          colLabels: [],
+          rows: []
+        });
+        return;
+      }
+
+      const cols = json.table.cols || [];
+
+      const colLabels = cols.map((col, index) => {
+        if (col.label && String(col.label).trim() !== "") {
+          return String(col.label).trim();
+        }
+
+        return `Column ${index + 1}`;
+      });
+
+      const colCount = cols.length;
+
+      let rows = (json.table.rows || []).map(row => {
+        const output = [];
+
+        for (let i = 0; i < colCount; i++) {
+          const cell = row.c && row.c[i] ? row.c[i] : null;
+
+          if (!cell) {
+            output.push("");
+          } else {
+            output.push(
+              cell.f !== undefined
+                ? cell.f
+                : cell.v !== undefined
+                  ? cell.v
+                  : ""
+            );
+          }
+        }
+
+        return output;
+      });
+
+      rows = trimEmptyRowsAndColumns(rows);
+
+      resolve({
+        colLabels,
+        rows
+      });
     };
-  }
 
-  const cols = json.table.cols || [];
+    script.onerror = function () {
+      clearTimeout(timeout);
+      cleanup();
+      reject(
+        new Error(
+          "Unable to load Google Sheet. Check sharing permission and sheet name."
+        )
+      );
+    };
 
-  const colLabels = cols.map((col, index) => {
-    if (col.label && String(col.label).trim() !== "") {
-      return String(col.label).trim();
-    }
+    function cleanup() {
+      delete window[callbackName];
 
-    return `Column ${index + 1}`;
-  });
-
-  const colCount = cols.length;
-
-  let rows = (json.table.rows || []).map(row => {
-    const output = [];
-
-    for (let i = 0; i < colCount; i++) {
-      const cell = row.c && row.c[i] ? row.c[i] : null;
-
-      if (!cell) {
-        output.push("");
-      } else {
-        output.push(cell.f !== undefined ? cell.f : cell.v !== undefined ? cell.v : "");
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
       }
     }
 
-    return output;
+    script.src = url;
+    document.body.appendChild(script);
   });
-
-  rows = trimEmptyRowsAndColumns(rows);
-
-  return {
-    colLabels,
-    rows
-  };
 }
 
 
@@ -243,7 +310,12 @@ async function loadDashboardBalance() {
     });
 
   } catch (error) {
-    container.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+    container.innerHTML = `
+      <p class="error">${escapeHtml(error.message)}</p>
+      <p style="font-size:14px;color:#666;">
+        Please check Google Sheet sharing: Anyone with the link → Viewer.
+      </p>
+    `;
   }
 }
 
@@ -284,7 +356,12 @@ async function loadSheet(sheetName) {
     renderTable(tableData.headers, tableData.bodyRows, container);
 
   } catch (error) {
-    container.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+    container.innerHTML = `
+      <p class="error">${escapeHtml(error.message)}</p>
+      <p style="font-size:14px;color:#666;">
+        Please check whether this sheet name exists in Google Sheet.
+      </p>
+    `;
   }
 }
 
@@ -556,6 +633,10 @@ function rowLooksLikeHeader(row, sheetName) {
 
   if (sheetName === "Event_Show_Master") {
     return text.includes("event id") || text.includes("event/show name");
+  }
+
+  if (sheetName === "Income_नोंद") {
+    return text.includes("income") || text.includes("amount") || text.includes("date");
   }
 
   return false;
