@@ -31,12 +31,13 @@ const TABLE_RANGES = {
   "Show_नोंद": "A1:AZ1000"
 };
 
-// Website button name and actual Google Sheet tab mapping.
-// Current website name: Show_नोंद
-// Actual source tab: Event_Show_Master
+// IMPORTANT:
+// Website button name: Show_नोंद
+// Actual Google Sheet source tab: Event_Show_Master
+// Do not keep Show_नोंद here, otherwise Google may load first sheet सूचना.
 const SHEET_SOURCE_MAP = {
-  "व्यवहार_नोंद": ["व्यवहार_नोंद"],
-  "Show_नोंद": ["Show_नोंद", "Event_Show_Master"]
+  "व्यवहार_नोंद": "व्यवहार_नोंद",
+  "Show_नोंद": "Event_Show_Master"
 };
 
 
@@ -296,20 +297,13 @@ function fetchSheetData(sheetName, range = "") {
 }
 
 
-async function fetchSheetDataWithFallback(displaySheetName, range = "") {
-  const possibleSheetNames = SHEET_SOURCE_MAP[displaySheetName] || [displaySheetName];
+// ===============================
+// FETCH DISPLAY SHEET FROM CORRECT SOURCE TAB
+// ===============================
 
-  let lastError = null;
-
-  for (const actualSheetName of possibleSheetNames) {
-    try {
-      return await fetchSheetData(actualSheetName, range);
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError || new Error("Unable to load sheet data.");
+async function fetchDisplaySheetData(displaySheetName, range = "") {
+  const actualSheetName = SHEET_SOURCE_MAP[displaySheetName] || displaySheetName;
+  return await fetchSheetData(actualSheetName, range);
 }
 
 
@@ -403,7 +397,7 @@ async function loadSheet(sheetName) {
 
   try {
     const range = TABLE_RANGES[sheetName] || "A1:AZ1000";
-    const data = await fetchSheetDataWithFallback(sheetName, range);
+    const data = await fetchDisplaySheetData(sheetName, range);
 
     if (!data.rows.length) {
       container.innerHTML = "<p>No data found in this sheet.</p>";
@@ -435,7 +429,7 @@ async function loadSheet(sheetName) {
     container.innerHTML = `
       <p class="error">${escapeHtml(error.message)}</p>
       <p style="font-size:14px;color:#666;">
-        Please check whether this sheet name exists in Google Sheet.
+        Please check whether the source sheet tab exists. For Show_नोंद, source tab must be Event_Show_Master.
       </p>
     `;
   }
@@ -487,6 +481,8 @@ function prepareTableData(sheetName, data) {
     normalised.bodyRows
   );
 
+  normalised.bodyRows = removeNonDataRows(sheetName, normalised.bodyRows);
+
   return normalised;
 }
 
@@ -499,6 +495,41 @@ function findHeaderRowIndex(sheetName, rows) {
   }
 
   return -1;
+}
+
+
+// ===============================
+// REMOVE NON-DATA ROWS
+// ===============================
+
+function removeNonDataRows(sheetName, rows) {
+  if (sheetName === "Show_नोंद") {
+    return rows.filter(row => {
+      const eventId = String(row[0] || "").trim();
+      const eventName = String(row[1] || "").trim();
+
+      if (eventId === "" && eventName === "") {
+        return false;
+      }
+
+      const rowText = row.map(x => String(x || "").toLowerCase()).join(" ");
+
+      if (
+        rowText.includes("audit template") ||
+        rowText.includes("workbook") ||
+        rowText.includes("step") ||
+        rowText.includes("काय करायचे") ||
+        rowText.includes("वापरा") ||
+        rowText.includes("proof link")
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  return rows;
 }
 
 
@@ -1187,7 +1218,7 @@ function rowLooksLikeHeader(row, sheetName) {
   }
 
   if (sheetName === "Show_नोंद") {
-    return text.includes("event id") || text.includes("event/show name");
+    return text.includes("event id") && text.includes("event/show name");
   }
 
   return false;
