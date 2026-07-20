@@ -117,7 +117,7 @@ const MANUAL_HEADERS = {
 
 
 // ===============================
-// FILTER STATE FOR व्यवहार_नोंद
+// EXCEL-LIKE FILTER STATE
 // ===============================
 
 let CURRENT_TABLE = {
@@ -127,12 +127,36 @@ let CURRENT_TABLE = {
 };
 
 let TRANSACTION_FILTERS = {
-  month: "all",
-  amountSort: "none",
-  type: "all",
-  paidBy: "all",
-  paymentMode: "all"
+  monthExcluded: [],
+  typeExcluded: [],
+  paidByExcluded: [],
+  paymentModeExcluded: [],
+  amountSort: "none"
 };
+
+const FILTERABLE_TRANSACTION_COLUMNS = {
+  "Transaction Date": {
+    filterType: "month",
+    stateKey: "monthExcluded"
+  },
+  "Amount": {
+    filterType: "amountSort"
+  },
+  "Type": {
+    filterType: "value",
+    stateKey: "typeExcluded"
+  },
+  "Paid By / Received From": {
+    filterType: "value",
+    stateKey: "paidByExcluded"
+  },
+  "Payment Mode": {
+    filterType: "value",
+    stateKey: "paymentModeExcluded"
+  }
+};
+
+const BLANK_VALUE_KEY = "__BLANK__";
 
 
 // ===============================
@@ -141,6 +165,10 @@ let TRANSACTION_FILTERS = {
 
 document.addEventListener("DOMContentLoaded", function () {
   loadDashboardBalance();
+});
+
+document.addEventListener("click", function () {
+  closeAllFilterMenus();
 });
 
 
@@ -206,7 +234,6 @@ function fetchSheetData(sheetName, range = "") {
         if (col.label && String(col.label).trim() !== "") {
           return String(col.label).trim();
         }
-
         return `Column ${index + 1}`;
       });
 
@@ -379,7 +406,7 @@ async function loadSheet(sheetName) {
 
     if (sheetName === "व्यवहार_नोंद") {
       resetTransactionFilters();
-      renderTransactionTableWithFilters();
+      renderTransactionTable();
     } else {
       renderTable(tableData.headers, tableData.bodyRows, container);
     }
@@ -650,23 +677,22 @@ function findColumnIndex(headers, requiredColumn) {
 
 
 // ===============================
-// व्यवहार_नोंद FILTER FUNCTIONS
+// EXCEL-LIKE FILTER RENDERING
 // ===============================
 
 function resetTransactionFilters() {
   TRANSACTION_FILTERS = {
-    month: "all",
-    amountSort: "none",
-    type: "all",
-    paidBy: "all",
-    paymentMode: "all"
+    monthExcluded: [],
+    typeExcluded: [],
+    paidByExcluded: [],
+    paymentModeExcluded: [],
+    amountSort: "none"
   };
 }
 
 
-function renderTransactionTableWithFilters() {
+function renderTransactionTable() {
   const container = document.getElementById("tableContainer");
-
   const headers = CURRENT_TABLE.headers;
   const allRows = CURRENT_TABLE.rows;
 
@@ -674,164 +700,270 @@ function renderTransactionTableWithFilters() {
 
   container.innerHTML = "";
 
-  const filterPanel = createTransactionFilterPanel(headers, allRows, filteredRows.length);
-  container.appendChild(filterPanel);
+  const topBar = document.createElement("div");
+  topBar.className = "excel-filter-topbar";
+  topBar.innerHTML = `
+    <span>Showing ${filteredRows.length} record(s)</span>
+    <button type="button" onclick="resetTransactionFiltersAndRender()">Clear All Filters</button>
+  `;
+  container.appendChild(topBar);
 
-  const table = buildTableElement(headers, filteredRows);
+  const table = buildTableElement(headers, filteredRows, {
+    enableExcelFilters: true,
+    allRows: allRows
+  });
+
   container.appendChild(table);
 }
 
 
-function createTransactionFilterPanel(headers, rows, visibleCount) {
-  const panel = document.createElement("div");
-  panel.className = "filter-panel";
-
-  const dateIndex = headers.indexOf("Transaction Date");
-  const typeIndex = headers.indexOf("Type");
-  const paidByIndex = headers.indexOf("Paid By / Received From");
-  const paymentModeIndex = headers.indexOf("Payment Mode");
-
-  const months = getUniqueMonths(rows, dateIndex);
-  const types = getUniqueValues(rows, typeIndex);
-  const paidByNames = getUniqueValues(rows, paidByIndex);
-  const paymentModes = getUniqueValues(rows, paymentModeIndex);
-
-  panel.appendChild(
-    createSelectFilter(
-      "Transaction Month",
-      "monthFilter",
-      months,
-      TRANSACTION_FILTERS.month,
-      function (value) {
-        TRANSACTION_FILTERS.month = value;
-        renderTransactionTableWithFilters();
-      },
-      true
-    )
-  );
-
-  panel.appendChild(
-    createSelectFilter(
-      "Amount Sort",
-      "amountSortFilter",
-      [
-        { value: "none", label: "No Sort" },
-        { value: "asc", label: "Amount: Low to High" },
-        { value: "desc", label: "Amount: High to Low" }
-      ],
-      TRANSACTION_FILTERS.amountSort,
-      function (value) {
-        TRANSACTION_FILTERS.amountSort = value;
-        renderTransactionTableWithFilters();
-      },
-      false
-    )
-  );
-
-  panel.appendChild(
-    createSelectFilter(
-      "Type",
-      "typeFilter",
-      types,
-      TRANSACTION_FILTERS.type,
-      function (value) {
-        TRANSACTION_FILTERS.type = value;
-        renderTransactionTableWithFilters();
-      },
-      true
-    )
-  );
-
-  panel.appendChild(
-    createSelectFilter(
-      "Paid By / Received From",
-      "paidByFilter",
-      paidByNames,
-      TRANSACTION_FILTERS.paidBy,
-      function (value) {
-        TRANSACTION_FILTERS.paidBy = value;
-        renderTransactionTableWithFilters();
-      },
-      true
-    )
-  );
-
-  panel.appendChild(
-    createSelectFilter(
-      "Payment Mode",
-      "paymentModeFilter",
-      paymentModes,
-      TRANSACTION_FILTERS.paymentMode,
-      function (value) {
-        TRANSACTION_FILTERS.paymentMode = value;
-        renderTransactionTableWithFilters();
-      },
-      true
-    )
-  );
-
-  const countBox = document.createElement("div");
-  countBox.className = "filter-count";
-  countBox.textContent = `Showing ${visibleCount} record(s)`;
-  panel.appendChild(countBox);
-
-  const resetButton = document.createElement("button");
-  resetButton.className = "filter-reset-btn";
-  resetButton.textContent = "Reset Filters";
-  resetButton.onclick = function () {
-    resetTransactionFilters();
-    renderTransactionTableWithFilters();
-  };
-  panel.appendChild(resetButton);
-
-  return panel;
+function resetTransactionFiltersAndRender() {
+  resetTransactionFilters();
+  renderTransactionTable();
 }
 
 
-function createSelectFilter(labelText, id, options, selectedValue, onChange, addAllOption) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "filter-item";
+function buildTableElement(headers, rows, options = {}) {
+  const table = document.createElement("table");
 
-  const label = document.createElement("label");
-  label.setAttribute("for", id);
-  label.textContent = labelText;
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
 
-  const select = document.createElement("select");
-  select.id = id;
+  headers.forEach(header => {
+    const th = document.createElement("th");
 
-  if (addAllOption) {
-    const allOption = document.createElement("option");
-    allOption.value = "all";
-    allOption.textContent = "All";
-    select.appendChild(allOption);
-  }
-
-  options.forEach(option => {
-    const opt = document.createElement("option");
-
-    if (typeof option === "object") {
-      opt.value = option.value;
-      opt.textContent = option.label;
+    if (
+      options.enableExcelFilters &&
+      FILTERABLE_TRANSACTION_COLUMNS[header]
+    ) {
+      th.className = "excel-filter-th";
+      th.appendChild(
+        createFilterableHeader(header, headers, options.allRows || [])
+      );
     } else {
-      opt.value = option;
-      opt.textContent = option;
+      th.textContent = header || "";
     }
 
-    select.appendChild(opt);
+    headerRow.appendChild(th);
   });
 
-  select.value = selectedValue;
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
 
-  select.onchange = function () {
-    onChange(select.value);
-  };
+  const tbody = document.createElement("tbody");
+
+  rows.forEach(row => {
+    const tr = document.createElement("tr");
+
+    headers.forEach((header, index) => {
+      const td = document.createElement("td");
+      td.innerHTML = linkifyCell(row[index] || "");
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+
+  return table;
+}
+
+
+function createFilterableHeader(header, headers, allRows) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "excel-filter-header";
+
+  const label = document.createElement("span");
+  label.textContent = header;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "excel-filter-button";
+  button.innerHTML = "▼";
+
+  if (isFilterActive(header)) {
+    button.classList.add("active");
+  }
+
+  const menu = createFilterMenu(header, headers, allRows);
+
+  button.addEventListener("click", function (event) {
+    event.stopPropagation();
+
+    const isOpen = menu.classList.contains("show");
+    closeAllFilterMenus();
+
+    if (!isOpen) {
+      menu.classList.add("show");
+    }
+  });
+
+  menu.addEventListener("click", function (event) {
+    event.stopPropagation();
+  });
 
   wrapper.appendChild(label);
-  wrapper.appendChild(select);
+  wrapper.appendChild(button);
+  wrapper.appendChild(menu);
 
   return wrapper;
 }
 
+
+function createFilterMenu(header, headers, allRows) {
+  const config = FILTERABLE_TRANSACTION_COLUMNS[header];
+
+  const menu = document.createElement("div");
+  menu.className = "excel-filter-menu";
+
+  const menuTitle = document.createElement("div");
+  menuTitle.className = "excel-filter-title";
+  menuTitle.textContent = header;
+  menu.appendChild(menuTitle);
+
+  if (config.filterType === "amountSort") {
+    menu.appendChild(createAmountSortOptions());
+    return menu;
+  }
+
+  const columnIndex = headers.indexOf(header);
+
+  const options =
+    config.filterType === "month"
+      ? getUniqueMonths(allRows, columnIndex)
+      : getUniqueFilterValues(allRows, columnIndex);
+
+  const actionRow = document.createElement("div");
+  actionRow.className = "excel-filter-actions";
+
+  const selectAllBtn = document.createElement("button");
+  selectAllBtn.type = "button";
+  selectAllBtn.textContent = "Select All";
+  selectAllBtn.onclick = function () {
+    TRANSACTION_FILTERS[config.stateKey] = [];
+    renderTransactionTable();
+  };
+
+  const clearAllBtn = document.createElement("button");
+  clearAllBtn.type = "button";
+  clearAllBtn.textContent = "Clear All";
+  clearAllBtn.onclick = function () {
+    TRANSACTION_FILTERS[config.stateKey] = options.map(x => x.value);
+    renderTransactionTable();
+  };
+
+  actionRow.appendChild(selectAllBtn);
+  actionRow.appendChild(clearAllBtn);
+  menu.appendChild(actionRow);
+
+  const list = document.createElement("div");
+  list.className = "excel-filter-list";
+
+  options.forEach(option => {
+    const row = document.createElement("label");
+    row.className = "excel-filter-option";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = !TRANSACTION_FILTERS[config.stateKey].includes(option.value);
+
+    checkbox.onchange = function () {
+      updateExcludedFilterValue(config.stateKey, option.value, checkbox.checked);
+      renderTransactionTable();
+    };
+
+    const text = document.createElement("span");
+    text.textContent = option.label;
+
+    row.appendChild(checkbox);
+    row.appendChild(text);
+
+    list.appendChild(row);
+  });
+
+  menu.appendChild(list);
+
+  return menu;
+}
+
+
+function createAmountSortOptions() {
+  const wrapper = document.createElement("div");
+  wrapper.className = "excel-filter-list";
+
+  const options = [
+    { value: "none", label: "No Sort" },
+    { value: "asc", label: "Sort Smallest to Largest" },
+    { value: "desc", label: "Sort Largest to Smallest" }
+  ];
+
+  options.forEach(option => {
+    const row = document.createElement("label");
+    row.className = "excel-filter-option";
+
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "amountSort";
+    radio.value = option.value;
+    radio.checked = TRANSACTION_FILTERS.amountSort === option.value;
+
+    radio.onchange = function () {
+      TRANSACTION_FILTERS.amountSort = option.value;
+      renderTransactionTable();
+    };
+
+    const text = document.createElement("span");
+    text.textContent = option.label;
+
+    row.appendChild(radio);
+    row.appendChild(text);
+
+    wrapper.appendChild(row);
+  });
+
+  return wrapper;
+}
+
+
+function updateExcludedFilterValue(stateKey, value, isChecked) {
+  let values = TRANSACTION_FILTERS[stateKey];
+
+  if (isChecked) {
+    values = values.filter(x => x !== value);
+  } else {
+    if (!values.includes(value)) {
+      values.push(value);
+    }
+  }
+
+  TRANSACTION_FILTERS[stateKey] = values;
+}
+
+
+function closeAllFilterMenus() {
+  document.querySelectorAll(".excel-filter-menu.show").forEach(menu => {
+    menu.classList.remove("show");
+  });
+}
+
+
+function isFilterActive(header) {
+  const config = FILTERABLE_TRANSACTION_COLUMNS[header];
+
+  if (!config) return false;
+
+  if (config.filterType === "amountSort") {
+    return TRANSACTION_FILTERS.amountSort !== "none";
+  }
+
+  return TRANSACTION_FILTERS[config.stateKey].length > 0;
+}
+
+
+// ===============================
+// APPLY FILTERS
+// ===============================
 
 function applyTransactionFilters(headers, rows) {
   const dateIndex = headers.indexOf("Transaction Date");
@@ -841,28 +973,24 @@ function applyTransactionFilters(headers, rows) {
   const paymentModeIndex = headers.indexOf("Payment Mode");
 
   let filteredRows = rows.filter(row => {
-    const rowMonth = getMonthKey(row[dateIndex]);
-    const rowType = String(row[typeIndex] || "").trim();
-    const rowPaidBy = String(row[paidByIndex] || "").trim();
-    const rowPaymentMode = String(row[paymentModeIndex] || "").trim();
+    const monthKey = getMonthKey(row[dateIndex]);
+    const typeKey = getFilterValueKey(row[typeIndex]);
+    const paidByKey = getFilterValueKey(row[paidByIndex]);
+    const paymentModeKey = getFilterValueKey(row[paymentModeIndex]);
 
-    const monthMatch =
-      TRANSACTION_FILTERS.month === "all" ||
-      rowMonth === TRANSACTION_FILTERS.month;
+    const monthAllowed =
+      !TRANSACTION_FILTERS.monthExcluded.includes(monthKey);
 
-    const typeMatch =
-      TRANSACTION_FILTERS.type === "all" ||
-      rowType === TRANSACTION_FILTERS.type;
+    const typeAllowed =
+      !TRANSACTION_FILTERS.typeExcluded.includes(typeKey);
 
-    const paidByMatch =
-      TRANSACTION_FILTERS.paidBy === "all" ||
-      rowPaidBy === TRANSACTION_FILTERS.paidBy;
+    const paidByAllowed =
+      !TRANSACTION_FILTERS.paidByExcluded.includes(paidByKey);
 
-    const paymentModeMatch =
-      TRANSACTION_FILTERS.paymentMode === "all" ||
-      rowPaymentMode === TRANSACTION_FILTERS.paymentMode;
+    const paymentModeAllowed =
+      !TRANSACTION_FILTERS.paymentModeExcluded.includes(paymentModeKey);
 
-    return monthMatch && typeMatch && paidByMatch && paymentModeMatch;
+    return monthAllowed && typeAllowed && paidByAllowed && paymentModeAllowed;
   });
 
   filteredRows = [...filteredRows];
@@ -879,14 +1007,30 @@ function applyTransactionFilters(headers, rows) {
 }
 
 
-function getUniqueValues(rows, columnIndex) {
+function getUniqueFilterValues(rows, columnIndex) {
   if (columnIndex === -1) return [];
 
-  const values = rows
-    .map(row => String(row[columnIndex] || "").trim())
-    .filter(value => value !== "");
+  const map = new Map();
 
-  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+  rows.forEach(row => {
+    const rawValue = row[columnIndex];
+    const key = getFilterValueKey(rawValue);
+    const label = key === BLANK_VALUE_KEY ? "(Blank)" : String(rawValue).trim();
+
+    map.set(key, label);
+  });
+
+  return [...map.entries()]
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .map(([value, label]) => {
+      return { value, label };
+    });
+}
+
+
+function getFilterValueKey(value) {
+  const text = String(value || "").trim();
+  return text === "" ? BLANK_VALUE_KEY : text;
 }
 
 
@@ -1097,48 +1241,17 @@ function normaliseHeaderName(value) {
 
 
 // ===============================
-// TABLE RENDERING
+// NORMAL TABLE RENDERING
 // ===============================
 
 function renderTable(headers, rows, container) {
   container.innerHTML = "";
-  const table = buildTableElement(headers, rows);
+
+  const table = buildTableElement(headers, rows, {
+    enableExcelFilters: false
+  });
+
   container.appendChild(table);
-}
-
-
-function buildTableElement(headers, rows) {
-  const table = document.createElement("table");
-
-  const thead = document.createElement("thead");
-  const headerRow = document.createElement("tr");
-
-  headers.forEach(header => {
-    const th = document.createElement("th");
-    th.textContent = header || "";
-    headerRow.appendChild(th);
-  });
-
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-
-  const tbody = document.createElement("tbody");
-
-  rows.forEach(row => {
-    const tr = document.createElement("tr");
-
-    headers.forEach((header, index) => {
-      const td = document.createElement("td");
-      td.innerHTML = linkifyCell(row[index] || "");
-      tr.appendChild(td);
-    });
-
-    tbody.appendChild(tr);
-  });
-
-  table.appendChild(tbody);
-
-  return table;
 }
 
 
