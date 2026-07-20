@@ -306,6 +306,71 @@ a:hover {
     width: 100%;
   }
 
+  /* ===============================
+   FILTER PANEL
+================================ */
+
+.filter-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: end;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 190px;
+}
+
+.filter-item label {
+  font-size: 13px;
+  font-weight: bold;
+  color: #334155;
+}
+
+.filter-item select {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+  outline: none;
+}
+
+.filter-item select:focus {
+  border-color: #00618a;
+}
+
+.filter-count {
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #00618a;
+  background: #e0f2fe;
+  border-radius: 8px;
+}
+
+.filter-reset-btn {
+  padding: 10px 14px;
+  border: none;
+  background: #9b0000;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.filter-reset-btn:hover {
+  background: #b00000;
+}
+
   .login-card h1 {
     font-size: 27px;
   }
