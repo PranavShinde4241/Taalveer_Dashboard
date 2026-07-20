@@ -117,6 +117,25 @@ const MANUAL_HEADERS = {
 
 
 // ===============================
+// FILTER STATE FOR व्यवहार_नोंद
+// ===============================
+
+let CURRENT_TABLE = {
+  sheetName: "",
+  headers: [],
+  rows: []
+};
+
+let TRANSACTION_FILTERS = {
+  month: "all",
+  amountSort: "none",
+  type: "all",
+  paidBy: "all",
+  paymentMode: "all"
+};
+
+
+// ===============================
 // LOAD DASHBOARD ON PAGE OPEN
 // ===============================
 
@@ -127,7 +146,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // ===============================
 // GOOGLE SHEET JSONP DATA FETCH
-// No fetch() used, so CORS failed-fetch issue is avoided
 // ===============================
 
 function fetchSheetData(sheetName, range = "") {
@@ -353,7 +371,18 @@ async function loadSheet(sheetName) {
       tableData.bodyRows
     );
 
-    renderTable(tableData.headers, tableData.bodyRows, container);
+    CURRENT_TABLE = {
+      sheetName,
+      headers: tableData.headers,
+      rows: tableData.bodyRows
+    };
+
+    if (sheetName === "व्यवहार_नोंद") {
+      resetTransactionFilters();
+      renderTransactionTableWithFilters();
+    } else {
+      renderTable(tableData.headers, tableData.bodyRows, container);
+    }
 
   } catch (error) {
     container.innerHTML = `
@@ -621,6 +650,373 @@ function findColumnIndex(headers, requiredColumn) {
 
 
 // ===============================
+// व्यवहार_नोंद FILTER FUNCTIONS
+// ===============================
+
+function resetTransactionFilters() {
+  TRANSACTION_FILTERS = {
+    month: "all",
+    amountSort: "none",
+    type: "all",
+    paidBy: "all",
+    paymentMode: "all"
+  };
+}
+
+
+function renderTransactionTableWithFilters() {
+  const container = document.getElementById("tableContainer");
+
+  const headers = CURRENT_TABLE.headers;
+  const allRows = CURRENT_TABLE.rows;
+
+  const filteredRows = applyTransactionFilters(headers, allRows);
+
+  container.innerHTML = "";
+
+  const filterPanel = createTransactionFilterPanel(headers, allRows, filteredRows.length);
+  container.appendChild(filterPanel);
+
+  const table = buildTableElement(headers, filteredRows);
+  container.appendChild(table);
+}
+
+
+function createTransactionFilterPanel(headers, rows, visibleCount) {
+  const panel = document.createElement("div");
+  panel.className = "filter-panel";
+
+  const dateIndex = headers.indexOf("Transaction Date");
+  const typeIndex = headers.indexOf("Type");
+  const paidByIndex = headers.indexOf("Paid By / Received From");
+  const paymentModeIndex = headers.indexOf("Payment Mode");
+
+  const months = getUniqueMonths(rows, dateIndex);
+  const types = getUniqueValues(rows, typeIndex);
+  const paidByNames = getUniqueValues(rows, paidByIndex);
+  const paymentModes = getUniqueValues(rows, paymentModeIndex);
+
+  panel.appendChild(
+    createSelectFilter(
+      "Transaction Month",
+      "monthFilter",
+      months,
+      TRANSACTION_FILTERS.month,
+      function (value) {
+        TRANSACTION_FILTERS.month = value;
+        renderTransactionTableWithFilters();
+      },
+      true
+    )
+  );
+
+  panel.appendChild(
+    createSelectFilter(
+      "Amount Sort",
+      "amountSortFilter",
+      [
+        { value: "none", label: "No Sort" },
+        { value: "asc", label: "Amount: Low to High" },
+        { value: "desc", label: "Amount: High to Low" }
+      ],
+      TRANSACTION_FILTERS.amountSort,
+      function (value) {
+        TRANSACTION_FILTERS.amountSort = value;
+        renderTransactionTableWithFilters();
+      },
+      false
+    )
+  );
+
+  panel.appendChild(
+    createSelectFilter(
+      "Type",
+      "typeFilter",
+      types,
+      TRANSACTION_FILTERS.type,
+      function (value) {
+        TRANSACTION_FILTERS.type = value;
+        renderTransactionTableWithFilters();
+      },
+      true
+    )
+  );
+
+  panel.appendChild(
+    createSelectFilter(
+      "Paid By / Received From",
+      "paidByFilter",
+      paidByNames,
+      TRANSACTION_FILTERS.paidBy,
+      function (value) {
+        TRANSACTION_FILTERS.paidBy = value;
+        renderTransactionTableWithFilters();
+      },
+      true
+    )
+  );
+
+  panel.appendChild(
+    createSelectFilter(
+      "Payment Mode",
+      "paymentModeFilter",
+      paymentModes,
+      TRANSACTION_FILTERS.paymentMode,
+      function (value) {
+        TRANSACTION_FILTERS.paymentMode = value;
+        renderTransactionTableWithFilters();
+      },
+      true
+    )
+  );
+
+  const countBox = document.createElement("div");
+  countBox.className = "filter-count";
+  countBox.textContent = `Showing ${visibleCount} record(s)`;
+  panel.appendChild(countBox);
+
+  const resetButton = document.createElement("button");
+  resetButton.className = "filter-reset-btn";
+  resetButton.textContent = "Reset Filters";
+  resetButton.onclick = function () {
+    resetTransactionFilters();
+    renderTransactionTableWithFilters();
+  };
+  panel.appendChild(resetButton);
+
+  return panel;
+}
+
+
+function createSelectFilter(labelText, id, options, selectedValue, onChange, addAllOption) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "filter-item";
+
+  const label = document.createElement("label");
+  label.setAttribute("for", id);
+  label.textContent = labelText;
+
+  const select = document.createElement("select");
+  select.id = id;
+
+  if (addAllOption) {
+    const allOption = document.createElement("option");
+    allOption.value = "all";
+    allOption.textContent = "All";
+    select.appendChild(allOption);
+  }
+
+  options.forEach(option => {
+    const opt = document.createElement("option");
+
+    if (typeof option === "object") {
+      opt.value = option.value;
+      opt.textContent = option.label;
+    } else {
+      opt.value = option;
+      opt.textContent = option;
+    }
+
+    select.appendChild(opt);
+  });
+
+  select.value = selectedValue;
+
+  select.onchange = function () {
+    onChange(select.value);
+  };
+
+  wrapper.appendChild(label);
+  wrapper.appendChild(select);
+
+  return wrapper;
+}
+
+
+function applyTransactionFilters(headers, rows) {
+  const dateIndex = headers.indexOf("Transaction Date");
+  const amountIndex = headers.indexOf("Amount");
+  const typeIndex = headers.indexOf("Type");
+  const paidByIndex = headers.indexOf("Paid By / Received From");
+  const paymentModeIndex = headers.indexOf("Payment Mode");
+
+  let filteredRows = rows.filter(row => {
+    const rowMonth = getMonthKey(row[dateIndex]);
+    const rowType = String(row[typeIndex] || "").trim();
+    const rowPaidBy = String(row[paidByIndex] || "").trim();
+    const rowPaymentMode = String(row[paymentModeIndex] || "").trim();
+
+    const monthMatch =
+      TRANSACTION_FILTERS.month === "all" ||
+      rowMonth === TRANSACTION_FILTERS.month;
+
+    const typeMatch =
+      TRANSACTION_FILTERS.type === "all" ||
+      rowType === TRANSACTION_FILTERS.type;
+
+    const paidByMatch =
+      TRANSACTION_FILTERS.paidBy === "all" ||
+      rowPaidBy === TRANSACTION_FILTERS.paidBy;
+
+    const paymentModeMatch =
+      TRANSACTION_FILTERS.paymentMode === "all" ||
+      rowPaymentMode === TRANSACTION_FILTERS.paymentMode;
+
+    return monthMatch && typeMatch && paidByMatch && paymentModeMatch;
+  });
+
+  filteredRows = [...filteredRows];
+
+  if (TRANSACTION_FILTERS.amountSort === "asc") {
+    filteredRows.sort((a, b) => parseAmount(a[amountIndex]) - parseAmount(b[amountIndex]));
+  }
+
+  if (TRANSACTION_FILTERS.amountSort === "desc") {
+    filteredRows.sort((a, b) => parseAmount(b[amountIndex]) - parseAmount(a[amountIndex]));
+  }
+
+  return filteredRows;
+}
+
+
+function getUniqueValues(rows, columnIndex) {
+  if (columnIndex === -1) return [];
+
+  const values = rows
+    .map(row => String(row[columnIndex] || "").trim())
+    .filter(value => value !== "");
+
+  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+}
+
+
+function getUniqueMonths(rows, dateIndex) {
+  if (dateIndex === -1) return [];
+
+  const monthMap = new Map();
+
+  rows.forEach(row => {
+    const key = getMonthKey(row[dateIndex]);
+
+    if (key) {
+      monthMap.set(key, getMonthLabel(key));
+    }
+  });
+
+  return [...monthMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([value, label]) => {
+      return { value, label };
+    });
+}
+
+
+function getMonthKey(dateValue) {
+  if (!dateValue) return "";
+
+  const text = String(dateValue).trim();
+
+  const monthNames = {
+    jan: 0,
+    january: 0,
+    feb: 1,
+    february: 1,
+    mar: 2,
+    march: 2,
+    apr: 3,
+    april: 3,
+    may: 4,
+    jun: 5,
+    june: 5,
+    jul: 6,
+    july: 6,
+    aug: 7,
+    august: 7,
+    sep: 8,
+    sept: 8,
+    september: 8,
+    oct: 9,
+    october: 9,
+    nov: 10,
+    november: 10,
+    dec: 11,
+    december: 11
+  };
+
+  let match = text.match(/Date\((\d{4}),(\d{1,2}),(\d{1,2})\)/);
+
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]) + 1;
+    return `${year}-${String(month).padStart(2, "0")}`;
+  }
+
+  match = text.match(/(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s](\d{4})/);
+
+  if (match) {
+    const monthText = match[2].toLowerCase();
+    const year = Number(match[3]);
+
+    if (monthNames[monthText] !== undefined) {
+      const month = monthNames[monthText] + 1;
+      return `${year}-${String(month).padStart(2, "0")}`;
+    }
+  }
+
+  match = text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+
+  if (match) {
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+    return `${year}-${String(month).padStart(2, "0")}`;
+  }
+
+  const parsedDate = new Date(text);
+
+  if (!isNaN(parsedDate.getTime())) {
+    const year = parsedDate.getFullYear();
+    const month = parsedDate.getMonth() + 1;
+    return `${year}-${String(month).padStart(2, "0")}`;
+  }
+
+  return "";
+}
+
+
+function getMonthLabel(monthKey) {
+  const [year, month] = monthKey.split("-");
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
+
+  const monthIndex = Number(month) - 1;
+  return `${monthNames[monthIndex]} ${year}`;
+}
+
+
+function parseAmount(value) {
+  const cleanValue = String(value || "")
+    .replace(/[₹,\s]/g, "")
+    .replace(/[^\d.-]/g, "");
+
+  const amount = parseFloat(cleanValue);
+
+  return isNaN(amount) ? 0 : amount;
+}
+
+
+// ===============================
 // HEADER DETECTION
 // ===============================
 
@@ -705,6 +1101,13 @@ function normaliseHeaderName(value) {
 // ===============================
 
 function renderTable(headers, rows, container) {
+  container.innerHTML = "";
+  const table = buildTableElement(headers, rows);
+  container.appendChild(table);
+}
+
+
+function buildTableElement(headers, rows) {
   const table = document.createElement("table");
 
   const thead = document.createElement("thead");
@@ -735,8 +1138,7 @@ function renderTable(headers, rows, container) {
 
   table.appendChild(tbody);
 
-  container.innerHTML = "";
-  container.appendChild(table);
+  return table;
 }
 
 
