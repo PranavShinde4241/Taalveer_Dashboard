@@ -25,30 +25,33 @@
     .dashboard-header {
       background: #9b0000;
       color: white;
-      padding: 22px 28px;
+      padding: 18px 28px;
       border-radius: 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+      min-height: 135px;
     }
 
-    .dashboard-header h1 {
-      margin: 0;
-      font-size: 38px;
-      line-height: 1.2;
+    .logo-box {
+      display: flex;
+      align-items: center;
     }
 
-    .dashboard-header p {
-      margin: 7px 0 0;
-      font-size: 18px;
+    .header-logo {
+      max-height: 105px;
+      max-width: 520px;
+      width: auto;
+      object-fit: contain;
+      display: block;
     }
 
     .logout-btn {
       background: white;
       color: #9b0000;
       border: none;
-      padding: 11px 18px;
+      padding: 12px 22px;
       border-radius: 8px;
       cursor: pointer;
       font-weight: bold;
@@ -335,14 +338,12 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 14px;
+        min-height: auto;
       }
 
-      .dashboard-header h1 {
-        font-size: 28px;
-      }
-
-      .dashboard-header p {
-        font-size: 15px;
+      .header-logo {
+        max-width: 100%;
+        max-height: 90px;
       }
 
       .summary-section,
@@ -363,9 +364,12 @@
   <div class="main-container">
 
     <header class="dashboard-header">
-      <div>
-        <h1>तालवीर ढोल-ताशा पथक</h1>
-        <p>Expense, Audit & Event Records</p>
+      <div class="logo-box">
+        <img
+          class="header-logo"
+          src="https://drive.google.com/thumbnail?id=1D3y6r2mw2NateXV8IekyUn-b_T9cE3ow&sz=w1000"
+          alt="तालवीर ढोल-ताशा पथक Logo"
+        />
       </div>
 
       <button class="logout-btn" onclick="logout()">Logout</button>
@@ -394,6 +398,6 @@
 
   </div>
 
-  <script src="./app.js?v=19"></script>
+  <script src="./app.js?v=20"></script>
 </body>
 </html>
