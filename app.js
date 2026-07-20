@@ -20,8 +20,7 @@ const SPREADSHEET_ID = "1_nlRFxAST7ErzyqiBr9b_Tw8OhjNCAXz";
 
 const ALLOWED_SHEETS = [
   "व्यवहार_नोंद",
-  "Event_Show_Master",
-  "Income_नोंद"
+  "Show_नोंद"
 ];
 
 const DASHBOARD_SHEET = "Dashboard_Summary";
@@ -29,8 +28,15 @@ const DASHBOARD_RANGE = "A4:B6";
 
 const TABLE_RANGES = {
   "व्यवहार_नोंद": "A1:AZ1000",
-  "Event_Show_Master": "A1:AZ1000",
-  "Income_नोंद": "A1:AZ1000"
+  "Show_नोंद": "A1:AZ1000"
+};
+
+// Website button name and actual Google Sheet tab mapping.
+// Current website name: Show_नोंद
+// Actual source tab: Event_Show_Master
+const SHEET_SOURCE_MAP = {
+  "व्यवहार_नोंद": ["व्यवहार_नोंद"],
+  "Show_नोंद": ["Show_नोंद", "Event_Show_Master"]
 };
 
 
@@ -51,7 +57,7 @@ const DISPLAY_COLUMNS = {
     "Payment Mode"
   ],
 
-  "Event_Show_Master": [
+  "Show_नोंद": [
     "Event ID",
     "Event/Show Name",
     "Event Date",
@@ -61,11 +67,7 @@ const DISPLAY_COLUMNS = {
     "Location",
     "Organizer/Client",
     "Expected Income",
-    "Actual Income",
-    "Actual Expense",
-    "Net Surplus/(Deficit)",
-    "Status",
-    "Remarks"
+    "Actual Income"
   ]
 };
 
@@ -97,7 +99,7 @@ const MANUAL_HEADERS = {
     "Notes"
   ],
 
-  "Event_Show_Master": [
+  "Show_नोंद": [
     "Event ID",
     "Event/Show Name",
     "Event Date",
@@ -234,6 +236,7 @@ function fetchSheetData(sheetName, range = "") {
         if (col.label && String(col.label).trim() !== "") {
           return String(col.label).trim();
         }
+
         return `Column ${index + 1}`;
       });
 
@@ -290,6 +293,23 @@ function fetchSheetData(sheetName, range = "") {
     script.src = url;
     document.body.appendChild(script);
   });
+}
+
+
+async function fetchSheetDataWithFallback(displaySheetName, range = "") {
+  const possibleSheetNames = SHEET_SOURCE_MAP[displaySheetName] || [displaySheetName];
+
+  let lastError = null;
+
+  for (const actualSheetName of possibleSheetNames) {
+    try {
+      return await fetchSheetData(actualSheetName, range);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("Unable to load sheet data.");
 }
 
 
@@ -383,7 +403,7 @@ async function loadSheet(sheetName) {
 
   try {
     const range = TABLE_RANGES[sheetName] || "A1:AZ1000";
-    const data = await fetchSheetData(sheetName, range);
+    const data = await fetchSheetDataWithFallback(sheetName, range);
 
     if (!data.rows.length) {
       container.innerHTML = "<p>No data found in this sheet.</p>";
@@ -431,21 +451,21 @@ function prepareTableData(sheetName, data) {
   let headers = [];
   let bodyRows = [];
 
-  const firstRow = rows[0] || [];
+  const headerIndex = findHeaderRowIndex(sheetName, rows);
 
   if (MANUAL_HEADERS[sheetName]) {
     headers = [...MANUAL_HEADERS[sheetName]];
 
-    if (rowLooksLikeHeader(firstRow, sheetName)) {
-      bodyRows = rows.slice(1);
+    if (headerIndex !== -1) {
+      bodyRows = rows.slice(headerIndex + 1);
     } else {
       bodyRows = rows;
     }
   }
 
-  else if (rowLooksLikeHeader(firstRow, sheetName)) {
-    headers = firstRow.map((x, i) => String(x).trim() || `Column ${i + 1}`);
-    bodyRows = rows.slice(1);
+  else if (headerIndex !== -1) {
+    headers = rows[headerIndex].map((x, i) => String(x).trim() || `Column ${i + 1}`);
+    bodyRows = rows.slice(headerIndex + 1);
   }
 
   else if (hasMeaningfulColumnLabels(data.colLabels)) {
@@ -468,6 +488,17 @@ function prepareTableData(sheetName, data) {
   );
 
   return normalised;
+}
+
+
+function findHeaderRowIndex(sheetName, rows) {
+  for (let i = 0; i < rows.length; i++) {
+    if (rowLooksLikeHeader(rows[i], sheetName)) {
+      return i;
+    }
+  }
+
+  return -1;
 }
 
 
@@ -631,22 +662,6 @@ function findColumnIndex(headers, requiredColumn) {
       "actual income",
       "received income",
       "total income"
-    ],
-
-    "actual expense": [
-      "actual expense",
-      "actual expenses",
-      "total expense",
-      "total expenses"
-    ],
-
-    "net surplus/(deficit)": [
-      "net surplus/(deficit)",
-      "net surplus / deficit",
-      "net surplus",
-      "surplus deficit",
-      "net surplus deficit",
-      "surplus/(deficit)"
     ],
 
     "start time": [
@@ -1168,15 +1183,11 @@ function rowLooksLikeHeader(row, sheetName) {
   const text = row.map(x => String(x).trim().toLowerCase()).join("|");
 
   if (sheetName === "व्यवहार_नोंद") {
-    return text.includes("sr no") && text.includes("transaction id");
+    return text.includes("sr no") && text.includes("transaction");
   }
 
-  if (sheetName === "Event_Show_Master") {
+  if (sheetName === "Show_नोंद") {
     return text.includes("event id") || text.includes("event/show name");
-  }
-
-  if (sheetName === "Income_नोंद") {
-    return text.includes("income") || text.includes("amount") || text.includes("date");
   }
 
   return false;
