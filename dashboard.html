@@ -6,8 +6,359 @@
 
   <title>Dashboard | तालवीर ढोल-ताशा पथक</title>
 
-  <link rel="stylesheet" href="./style.css?v=16" />
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, "Noto Sans Devanagari", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #f4f6f9;
+      color: #111827;
+    }
+
+    .main-container {
+      padding: 24px;
+    }
+
+    .dashboard-header {
+      background: #9b0000;
+      color: white;
+      padding: 22px 28px;
+      border-radius: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    }
+
+    .dashboard-header h1 {
+      margin: 0;
+      font-size: 38px;
+      line-height: 1.2;
+    }
+
+    .dashboard-header p {
+      margin: 7px 0 0;
+      font-size: 18px;
+    }
+
+    .logout-btn {
+      background: white;
+      color: #9b0000;
+      border: none;
+      padding: 11px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 15px;
+    }
+
+    .logout-btn:hover {
+      background: #f7f7f7;
+    }
+
+    .summary-section,
+    .table-section {
+      background: white;
+      margin-top: 24px;
+      padding: 26px;
+      border-radius: 14px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    }
+
+    .summary-section h2,
+    .table-section h2 {
+      font-size: 30px;
+      margin: 0 0 14px;
+      color: #111827;
+    }
+
+    .balance-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .balance-card {
+      background: #fff6e6;
+      border-left: 6px solid #9b0000;
+      padding: 18px;
+      border-radius: 11px;
+    }
+
+    .balance-card h3 {
+      margin: 0 0 9px;
+      color: #9b0000;
+      font-size: 18px;
+    }
+
+    .balance-card p {
+      margin: 0;
+      font-size: 24px;
+      font-weight: bold;
+      color: #111827;
+    }
+
+    .button-section {
+      margin-top: 24px;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .button-section button {
+      background: #222;
+      color: white;
+      border: none;
+      padding: 14px 20px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .button-section button:hover {
+      background: #444;
+    }
+
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 18px;
+      border-radius: 10px;
+      position: relative;
+    }
+
+    table {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: white;
+    }
+
+    thead th {
+      background: #00618a;
+      color: white;
+      font-weight: bold;
+      text-align: center;
+      padding: 12px 10px;
+      border: 1px solid #ffffff;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    tbody td {
+      padding: 10px 12px;
+      border: 1px solid #d6d6d6;
+      text-align: left;
+      vertical-align: top;
+      white-space: normal;
+      max-width: 260px;
+      word-break: break-word;
+    }
+
+    tbody tr:nth-child(odd) {
+      background: #c7eaf7;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #ffffff;
+    }
+
+    a {
+      color: #0066cc;
+      font-weight: bold;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .loading {
+      color: #777;
+    }
+
+    .error {
+      color: red;
+      font-size: 14px;
+    }
+
+    /* Excel-like filter design */
+    .excel-filter-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #334155;
+    }
+
+    .excel-filter-topbar button {
+      background: #9b0000;
+      color: white;
+      border: none;
+      border-radius: 7px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .excel-filter-topbar button:hover {
+      background: #b00000;
+    }
+
+    .excel-filter-th {
+      position: relative;
+      overflow: visible;
+    }
+
+    .excel-filter-header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      position: relative;
+    }
+
+    .excel-filter-button {
+      width: 22px;
+      height: 22px;
+      border: 1px solid rgba(255,255,255,0.8);
+      background: rgba(255,255,255,0.18);
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .excel-filter-button:hover,
+    .excel-filter-button.active {
+      background: white;
+      color: #00618a;
+    }
+
+    .excel-filter-menu {
+      display: none;
+      position: absolute;
+      top: 34px;
+      right: 0;
+      min-width: 240px;
+      max-width: 280px;
+      background: white;
+      color: #111827;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.22);
+      z-index: 9999;
+      padding: 10px;
+      text-align: left;
+    }
+
+    .excel-filter-menu.show {
+      display: block;
+    }
+
+    .excel-filter-title {
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #00618a;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 8px;
+    }
+
+    .excel-filter-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .excel-filter-actions button {
+      flex: 1;
+      border: none;
+      background: #e0f2fe;
+      color: #00618a;
+      padding: 7px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .excel-filter-actions button:hover {
+      background: #bae6fd;
+    }
+
+    .excel-filter-list {
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .excel-filter-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 4px;
+      font-size: 13px;
+      cursor: pointer;
+      color: #111827;
+    }
+
+    .excel-filter-option:hover {
+      background: #f1f5f9;
+      border-radius: 5px;
+    }
+
+    .excel-filter-option input {
+      cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+      .main-container {
+        padding: 14px;
+      }
+
+      .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+      }
+
+      .dashboard-header h1 {
+        font-size: 28px;
+      }
+
+      .dashboard-header p {
+        font-size: 15px;
+      }
+
+      .summary-section,
+      .table-section {
+        padding: 18px;
+      }
+
+      .summary-section h2,
+      .table-section h2 {
+        font-size: 24px;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
   <div class="main-container">
@@ -36,6 +387,7 @@
 
     <section class="table-section">
       <h2 id="tableTitle">Select a sheet</h2>
+
       <div id="tableContainer" class="table-container">
         <p>Please click one of the above buttons to view data.</p>
       </div>
@@ -43,6 +395,6 @@
 
   </div>
 
-  <script src="./app.js?v=16"></script>
+  <script src="./app.js?v=15"></script>
 </body>
 </html>
