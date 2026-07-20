@@ -748,10 +748,12 @@ function renderTransactionTable() {
 
   const topBar = document.createElement("div");
   topBar.className = "excel-filter-topbar";
+
   topBar.innerHTML = `
-    <span>Showing ${filteredRows.length} record(s)</span>
+    <span>Showing ${filteredRows.length}/${allRows.length} records</span>
     <button type="button" onclick="resetTransactionFiltersAndRender()">Clear All Filters</button>
   `;
+
   container.appendChild(topBar);
 
   const table = buildTableElement(headers, filteredRows, {
